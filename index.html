@@ -780,7 +780,7 @@
 
 <div class="global-drop-overlay" id="globalDropOverlay">
   <div style="font-size: 18px; color: var(--accent); font-weight: 700;">[ DROP MEDIA TO RENDER ASCII ]</div>
-  <div style="font-size: 12px; color: var(--text-secondary);">Supports PNG, JPG, WebP, MP4, WebM, MOV</div>
+  <div style="font-size: 12px; color: var(--text-secondary);">Supports PNG, JPG, WebP, GIF, MP4, WebM, MOV</div>
 </div>
 
 <div class="app-shell">
@@ -805,9 +805,9 @@
           <span>01 // Upload Media</span>
         </div>
         <div class="dropzone" id="dropzone">
-          <div class="dropzone-title">Drop image or video here</div>
-          <div class="dropzone-sub">PNG, JPG, WebP • MP4, WebM, MOV</div>
-          <input type="file" id="fileInput" class="hidden-input" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" />
+          <div class="dropzone-title">Drop image, GIF, or video here</div>
+          <div class="dropzone-sub">PNG, JPG, WebP, GIF • MP4, WebM, MOV</div>
+          <input type="file" id="fileInput" class="hidden-input" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" />
         </div>
       </div>
 
@@ -1217,8 +1217,11 @@
     // Export Options
     videoAspect: '16:9',
 
-    // Loaded Image, Object URL & Export Flag
+    // Loaded Image, Animated GIF, Object URL & Export Flag
     loadedImage: null,
+    gifFrames: [],
+    gifDuration: 0,
+    gifTime: 0,
     currentMediaUrl: null,
     isExporting: false
   };
@@ -1232,6 +1235,15 @@
   const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
   const procCanvas = document.getElementById('proceduralCanvas');
   const procCtx = procCanvas.getContext('2d');
+  const sourceVideo = document.getElementById('sourceVideo');
+
+  const sidebar = document.getElementById('sidebar');
+  const stageWrapper = document.getElementById('stageWrapper');
+  const timelineScrubber = document.getElementById('timelineScrubber');
+  const timeReadout = document.getElementById('timeReadout');
+  const sourceBadge = document.getElementById('sourceBadge');
+  const gridBadge = document.getElementById('gridBadge');
+
   const PW = procCanvas.width;
   const PH = procCanvas.height;
   const procImgData = procCtx.createImageData(PW, PH);
@@ -1243,80 +1255,134 @@
     procZBuf.fill(1e9);
   }
 
-  const sourceVideo = document.getElementById('sourceVideo');
-  const sidebar = document.getElementById('sidebar');
-  const stageWrapper = document.getElementById('stageWrapper');
-  const timelineScrubber = document.getElementById('timelineScrubber');
-  const timeReadout = document.getElementById('timeReadout');
-  const sourceBadge = document.getElementById('sourceBadge');
-  const gridBadge = document.getElementById('gridBadge');
+  function packAbgr(r, g, b) {
+    return (255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
+  }
+
+  function plotZPixel32(x, y, z, abgr) {
+    const ix = x | 0;
+    const iy = y | 0;
+    if (ix < 0 || ix >= PW || iy < 0 || iy >= PH) return;
+    const idx = iy * PW + ix;
+    if (z < procZBuf[idx]) {
+      procZBuf[idx] = z;
+      procBuf32[idx] = abgr;
+    }
+  }
+
+  function plotZDisc32(cx, cy, rad, z, abgr) {
+    const rCeil = Math.ceil(rad);
+    const rSq = rad * rad;
+    const x0 = Math.max(0, (cx - rCeil) | 0);
+    const x1 = Math.min(PW - 1, (cx + rCeil) | 0);
+    const y0 = Math.max(0, (cy - rCeil) | 0);
+    const y1 = Math.min(PH - 1, (cy + rCeil) | 0);
+    for (let y = y0; y <= y1; y++) {
+      const dy = y - cy;
+      const dy2 = dy * dy;
+      const row = y * PW;
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx;
+        if (dx * dx + dy2 <= rSq) {
+          const idx = row + x;
+          if (z < procZBuf[idx]) {
+            procZBuf[idx] = z;
+            procBuf32[idx] = abgr;
+          }
+        }
+      }
+    }
+  }
 
   /* =========================================================================
-   * 3. GPU GLYPH SPRITE ATLAS (ZERO-LAG TEXT & RGB RENDERER)
+   * 3. COLOR HELPERS, CONTRAST/BRIGHTNESS LUT & GPU GLYPH SPRITE ATLAS
    * ========================================================================= */
+  function getActiveCharset() {
+    if (state.charsetKey === 'custom') {
+      return state.customCharset.length > 0 ? state.customCharset : ' .:+*#@';
+    }
+    return CHARSETS[state.charsetKey] || CHARSETS.detailed;
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const num = parseInt(
+      clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean,
+      16
+    );
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  }
+
+  function getHexLuminance(hex) {
+    const [r, g, b] = hexToRgb(hex);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  }
+
+  const bcLut = new Uint8Array(256);
+  let lastLutKey = '';
+  function updateContrastBrightnessLut() {
+    const key = `${state.contrast}|${state.brightness}`;
+    if (key === lastLutKey) return;
+    lastLutKey = key;
+    const factor = (259 * (state.contrast + 255)) / (255 * (259 - state.contrast));
+    const offset = state.brightness * 2.55;
+    for (let i = 0; i < 256; i++) {
+      const v = factor * (i - 128) + 128 + offset;
+      bcLut[i] = v < 0 ? 0 : (v > 255 ? 255 : (v | 0));
+    }
+  }
+
   const SHADE_LEVELS = 32;
   const glyphEngine = {
-    charset: '',
-    cellW: 0,
-    cellH: 0,
-    colorMode: '',
-    tintHex: '',
-    isLightBg: false,
-    baseCanvas: document.createElement('canvas'),
+    key: '',
+    cw: 0,
+    ch: 0,
+    baseStrip: null,
     shadeCanvases: [],
     rgbCache: new Map(),
     rgbPool: [],
-    buildStrip: null,
-    buildStripKey: ''
+    buildScanCanvas: null,
+    buildScanKey: ''
   };
 
-  function makeTintedStrip(sourceCanvas, cssColor, reuseCanvas = null) {
-    const c = reuseCanvas || document.createElement('canvas');
-    c.width = sourceCanvas.width;
-    c.height = sourceCanvas.height;
+  function makeTintedStrip(glyphStrip, cw, ch, r, g, b, targetCanvas = null) {
+    const c = targetCanvas || document.createElement('canvas');
+    if (c.width !== glyphStrip.width) c.width = glyphStrip.width;
+    if (c.height !== ch) c.height = ch;
     const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.fillStyle = cssColor;
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(sourceCanvas, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, c.width, ch);
+    ctx.drawImage(glyphStrip, 0, 0);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0, 0, c.width, ch);
     ctx.globalCompositeOperation = 'source-over';
     return c;
   }
 
   function ensureGlyphAtlas(charset, cw, ch, isLightBg) {
-    const needRebuild =
-      glyphEngine.charset !== charset ||
-      glyphEngine.cellW !== cw ||
-      glyphEngine.cellH !== ch ||
-      glyphEngine.colorMode !== state.colorMode ||
-      glyphEngine.tintHex !== state.tintHex ||
-      glyphEngine.isLightBg !== isLightBg;
+    const atlasKey = `${charset}|${cw}|${ch}|${state.colorMode}|${state.tintHex}|${isLightBg}`;
+    if (glyphEngine.key === atlasKey) return;
 
-    if (!needRebuild) return;
+    glyphEngine.key = atlasKey;
+    glyphEngine.cw = cw;
+    glyphEngine.ch = ch;
+    glyphEngine.buildScanKey = '';
 
-    glyphEngine.charset = charset;
-    glyphEngine.cellW = cw;
-    glyphEngine.cellH = ch;
-    glyphEngine.colorMode = state.colorMode;
-    glyphEngine.tintHex = state.tintHex;
-    glyphEngine.isLightBg = isLightBg;
-    glyphEngine.buildStripKey = '';
-
-    for (const c of glyphEngine.rgbCache.values()) {
-      glyphEngine.rgbPool.push(c);
+    // Recycle existing RGB strip canvases into pool
+    for (const canvas of glyphEngine.rgbCache.values()) {
+      glyphEngine.rgbPool.push(canvas);
     }
     glyphEngine.rgbCache.clear();
 
-    const stripW = Math.max(1, charset.length * cw);
-    const stripH = Math.max(1, ch);
-    const base = glyphEngine.baseCanvas;
+    const stripW = charset.length * cw;
+    const base = glyphEngine.baseStrip || document.createElement('canvas');
     base.width = stripW;
-    base.height = stripH;
+    base.height = ch;
     const bctx = base.getContext('2d');
-    bctx.clearRect(0, 0, stripW, stripH);
+    bctx.clearRect(0, 0, stripW, ch);
 
-    const fontSize = Math.max(6, ch * 1.02);
+    const fontSize = Math.max(6, ch * 1.04);
     bctx.font = `500 ${fontSize.toFixed(2)}px "JetBrains Mono", "Fira Code", "Courier New", monospace`;
     bctx.textAlign = 'center';
     bctx.textBaseline = 'middle';
@@ -1325,55 +1391,81 @@
     for (let i = 0; i < charset.length; i++) {
       bctx.fillText(charset[i], (i + 0.5) * cw, ch * 0.52);
     }
+    glyphEngine.baseStrip = base;
 
     const [tR, tG, tB] = hexToRgb(state.tintHex);
     for (let s = 0; s < SHADE_LEVELS; s++) {
       const lum = s / (SHADE_LEVELS - 1);
-      let cssColor;
+      let r, g, b;
       if (state.colorMode === 'tint') {
         const shade = 0.35 + 0.65 * lum;
-        cssColor = `rgb(${Math.round(tR * shade)},${Math.round(tG * shade)},${Math.round(tB * shade)})`;
+        r = Math.round(tR * shade);
+        g = Math.round(tG * shade);
+        b = Math.round(tB * shade);
       } else {
         const v = isLightBg
           ? Math.round(20 + (1 - lum) * 210)
           : Math.round(85 + lum * 170);
-        cssColor = `rgb(${v},${v},${v})`;
+        r = v; g = v; b = v;
       }
-      glyphEngine.shadeCanvases[s] = makeTintedStrip(base, cssColor, glyphEngine.shadeCanvases[s]);
+      glyphEngine.shadeCanvases[s] = makeTintedStrip(
+        base,
+        cw,
+        ch,
+        r,
+        g,
+        b,
+        glyphEngine.shadeCanvases[s] || null
+      );
     }
   }
 
   function getRgbGlyphStrip(r, g, b) {
-    const qr = (r >> 3) << 3;
-    const qg = (g >> 3) << 3;
-    const qb = (b >> 3) << 3;
+    // Quantize to 5-bit per channel (32,768 colors) for near-lossless RGB with high cache hit rate
+    const qr = r & 0xF8;
+    const qg = g & 0xF8;
+    const qb = b & 0xF8;
     const key = (qr << 16) | (qg << 8) | qb;
     let strip = glyphEngine.rgbCache.get(key);
     if (!strip) {
-      let reuse = null;
-      if (glyphEngine.rgbCache.size >= 360) {
-        const oldest = glyphEngine.rgbCache.keys().next().value;
-        reuse = glyphEngine.rgbCache.get(oldest);
-        glyphEngine.rgbCache.delete(oldest);
-      } else if (glyphEngine.rgbPool.length > 0) {
-        reuse = glyphEngine.rgbPool.pop();
+      if (glyphEngine.rgbCache.size >= 400) {
+        const oldestKey = glyphEngine.rgbCache.keys().next().value;
+        const recycled = glyphEngine.rgbCache.get(oldestKey);
+        glyphEngine.rgbCache.delete(oldestKey);
+        glyphEngine.rgbPool.push(recycled);
       }
-      strip = makeTintedStrip(glyphEngine.baseCanvas, `rgb(${qr},${qg},${qb})`, reuse);
+      const pooled = glyphEngine.rgbPool.pop() || null;
+      strip = makeTintedStrip(glyphEngine.baseStrip, glyphEngine.cw, glyphEngine.ch, qr, qg, qb, pooled);
       glyphEngine.rgbCache.set(key, strip);
     }
     return strip;
   }
 
   function getBuildScanStrip(isLightBg) {
-    const scanHex = state.colorMode === 'tint'
-      ? state.tintHex
-      : (isLightBg ? '#059669' : '#34d399');
-    const key = `${glyphEngine.charset}_${glyphEngine.cellW}_${glyphEngine.cellH}_${scanHex}`;
-    if (!glyphEngine.buildStrip || glyphEngine.buildStripKey !== key) {
-      glyphEngine.buildStrip = makeTintedStrip(glyphEngine.baseCanvas, scanHex, glyphEngine.buildStrip);
-      glyphEngine.buildStripKey = key;
+    const scanKey = `${glyphEngine.key}|${state.colorMode}|${state.tintHex}|${isLightBg}`;
+    if (glyphEngine.buildScanCanvas && glyphEngine.buildScanKey === scanKey) {
+      return glyphEngine.buildScanCanvas;
     }
-    return glyphEngine.buildStrip;
+    glyphEngine.buildScanKey = scanKey;
+    let r = 16, g = 235, b = 155;
+    if (state.colorMode === 'tint') {
+      const [tr, tg, tb] = hexToRgb(state.tintHex);
+      r = Math.min(255, tr + 55);
+      g = Math.min(255, tg + 55);
+      b = Math.min(255, tb + 55);
+    } else if (isLightBg) {
+      r = 5; g = 145; b = 98;
+    }
+    glyphEngine.buildScanCanvas = makeTintedStrip(
+      glyphEngine.baseStrip,
+      glyphEngine.cw,
+      glyphEngine.ch,
+      r,
+      g,
+      b,
+      glyphEngine.buildScanCanvas
+    );
+    return glyphEngine.buildScanCanvas;
   }
 
   /* =========================================================================
@@ -1415,221 +1507,159 @@
   }
 
   /* =========================================================================
-   * 5. 12 PREMADE 3D PROCEDURAL OBJECTS
+   * 5. BUILT-IN PREMADE 3D OBJECTS (12 REAL-TIME 3D SCENES)
    * ========================================================================= */
+  const sphereSpriteCache = new Map();
+
   function drawShadedSphere(ctx, cx, cy, r, baseRGB, lightDir, rimColor = null) {
-    const grad = ctx.createRadialGradient(
-      cx + lightDir.x * r * 0.42,
-      cy + lightDir.y * r * 0.42,
-      r * 0.06,
-      cx,
-      cy,
-      r
-    );
-    const [br, bg, bb] = baseRGB;
-    grad.addColorStop(0, `rgb(${Math.min(255, (br * 1.15) | 0)}, ${Math.min(255, (bg * 1.15) | 0)}, ${Math.min(255, (bb * 1.15) | 0)})`);
-    grad.addColorStop(0.55, `rgb(${(br * 0.72) | 0}, ${(bg * 0.72) | 0}, ${(bb * 0.72) | 0})`);
-    grad.addColorStop(0.88, `rgb(${(br * 0.28) | 0}, ${(bg * 0.28) | 0}, ${(bb * 0.28) | 0})`);
-    grad.addColorStop(1, rimColor || `rgb(${(br * 0.16) | 0}, ${(bg * 0.16) | 0}, ${(bb * 0.16) | 0})`);
-
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function plotZPoint(sx, sy, rz, radius, r, g, b) {
-    const ix = sx | 0;
-    const iy = sy | 0;
-    const rad = Math.max(1, radius | 0);
-    const r2 = rad * rad;
-    const col32 = (255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
-    const minY = Math.max(0, iy - rad);
-    const maxY = Math.min(PH - 1, iy + rad);
-    const minX = Math.max(0, ix - rad);
-    const maxX = Math.min(PW - 1, ix + rad);
-
-    for (let y = minY; y <= maxY; y++) {
-      const dy = y - iy;
-      const dy2 = dy * dy;
-      const rowOff = y * PW;
-      for (let x = minX; x <= maxX; x++) {
-        const dx = x - ix;
-        if (dx * dx + dy2 <= r2) {
-          const idx = rowOff + x;
-          if (rz < procZBuf[idx]) {
-            procZBuf[idx] = rz;
-            procBuf32[idx] = col32;
-          }
-        }
-      }
+    const qR = Math.max(2, Math.round(r * 2) / 2);
+    const key = `${qR}|${baseRGB[0]},${baseRGB[1]},${baseRGB[2]}|${lightDir.x},${lightDir.y}|${rimColor || ''}`;
+    let sprite = sphereSpriteCache.get(key);
+    if (!sprite) {
+      if (sphereSpriteCache.size > 160) sphereSpriteCache.clear();
+      const pad = 2;
+      const dim = Math.ceil(qR * 2 + pad * 2);
+      const half = dim * 0.5;
+      sprite = document.createElement('canvas');
+      sprite.width = dim;
+      sprite.height = dim;
+      const sctx = sprite.getContext('2d');
+      const grad = sctx.createRadialGradient(
+        half + lightDir.x * qR * 0.42,
+        half + lightDir.y * qR * 0.42,
+        qR * 0.06,
+        half,
+        half,
+        qR
+      );
+      const [br, bg, bb] = baseRGB;
+      grad.addColorStop(0, `rgb(${Math.min(255, Math.round(br * 1.15))}, ${Math.min(255, Math.round(bg * 1.15))}, ${Math.min(255, Math.round(bb * 1.15))})`);
+      grad.addColorStop(0.55, `rgb(${Math.round(br * 0.72)}, ${Math.round(bg * 0.72)}, ${Math.round(bb * 0.72)})`);
+      grad.addColorStop(0.88, `rgb(${Math.round(br * 0.28)}, ${Math.round(bg * 0.28)}, ${Math.round(bb * 0.28)})`);
+      grad.addColorStop(1, rimColor || `rgb(${Math.round(br * 0.16)}, ${Math.round(bg * 0.16)}, ${Math.round(bb * 0.16)})`);
+      sctx.fillStyle = grad;
+      sctx.beginPath();
+      sctx.arc(half, half, qR, 0, Math.PI * 2);
+      sctx.fill();
+      sphereSpriteCache.set(key, sprite);
     }
+    ctx.drawImage(sprite, cx - sprite.width * 0.5, cy - sprite.height * 0.5);
   }
 
-  function plotAdditivePoint(sx, sy, radius, r, g, b) {
-    const ix = sx | 0;
-    const iy = sy | 0;
-    const rad = Math.max(1, radius | 0);
-    const r2 = rad * rad;
-    const minY = Math.max(0, iy - rad);
-    const maxY = Math.min(PH - 1, iy + rad);
-    const minX = Math.max(0, ix - rad);
-    const maxX = Math.min(PW - 1, ix + rad);
-
-    for (let y = minY; y <= maxY; y++) {
-      const dy = y - iy;
-      const dy2 = dy * dy;
-      const rowOff = y * PW;
-      for (let x = minX; x <= maxX; x++) {
-        const dx = x - ix;
-        if (dx * dx + dy2 <= r2) {
-          const idx = rowOff + x;
-          const prev = procBuf32[idx];
-          const pr = prev & 255;
-          const pg = (prev >> 8) & 255;
-          const pb = (prev >> 16) & 255;
-          const nr = Math.min(255, pr + r);
-          const ng = Math.min(255, pg + g);
-          const nb = Math.min(255, pb + b);
-          procBuf32[idx] = (255 << 24) | (nb << 16) | (ng << 8) | nr;
-        }
-      }
-    }
-  }
-
-  const bcLut = new Uint8Array(256);
-  let lastContrast = NaN;
-  let lastBrightness = NaN;
-
-  function updateContrastBrightnessLut() {
-    if (lastContrast === state.contrast && lastBrightness === state.brightness) return;
-    lastContrast = state.contrast;
-    lastBrightness = state.brightness;
-    const factor = (259 * (state.contrast + 255)) / (255 * (259 - state.contrast));
-    const offset = state.brightness * 2.55;
-    for (let i = 0; i < 256; i++) {
-      const v = factor * (i - 128) + 128 + offset;
-      bcLut[i] = v < 0 ? 0 : (v > 255 ? 255 : (v | 0));
-    }
-  }
-
-  // 1. 3D Shaded Snowman
+  // 5.1 Snowman
   function renderProceduralSnowman(t) {
     const w = PW, h = PH;
-    const s = w / 360;
     procCtx.fillStyle = '#000000';
     procCtx.fillRect(0, 0, w, h);
 
     const angle = Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.45;
-    const bob = Math.abs(Math.sin((t / state.loopDuration) * Math.PI * 4)) * 3 * s;
+    const bob = Math.abs(Math.sin((t / state.loopDuration) * Math.PI * 4)) * 2.2;
     const lightDir = { x: -0.55, y: -0.65 };
     const cx = w * 0.5;
 
-    drawShadedSphere(procCtx, cx, h * 0.73 - bob * 0.4, 64 * s, [245, 248, 255], lightDir);
-    drawShadedSphere(procCtx, cx, h * 0.50 - bob * 0.7, 48 * s, [245, 248, 255], lightDir);
+    // Bottom & Torso Spheres
+    drawShadedSphere(procCtx, cx, h * 0.73 - bob * 0.4, 43, [245, 248, 255], lightDir);
+    drawShadedSphere(procCtx, cx, h * 0.50 - bob * 0.7, 32, [245, 248, 255], lightDir);
 
+    // Stick Arms
     procCtx.save();
     procCtx.strokeStyle = '#9c7a54';
-    procCtx.lineWidth = Math.max(2, 5 * s);
+    procCtx.lineWidth = 3.5;
     procCtx.lineCap = 'round';
     const armWave = Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.18;
     procCtx.beginPath();
-    procCtx.moveTo(cx - 42 * s, h * 0.47 - bob * 0.7);
-    procCtx.lineTo(cx - 95 * s, h * 0.37 - armWave * 40 * s);
-    procCtx.lineTo(cx - 110 * s, h * 0.32 - armWave * 45 * s);
-    procCtx.moveTo(cx - 95 * s, h * 0.37 - armWave * 40 * s);
-    procCtx.lineTo(cx - 112 * s, h * 0.41 - armWave * 35 * s);
-    procCtx.moveTo(cx + 42 * s, h * 0.47 - bob * 0.7);
-    procCtx.lineTo(cx + 95 * s, h * 0.38 + armWave * 35 * s);
-    procCtx.lineTo(cx + 111 * s, h * 0.33 + armWave * 40 * s);
+    procCtx.moveTo(cx - 28, h * 0.47 - bob * 0.7);
+    procCtx.lineTo(cx - 64, h * 0.37 - armWave * 28);
+    procCtx.lineTo(cx - 74, h * 0.32 - armWave * 31);
+    procCtx.moveTo(cx - 64, h * 0.37 - armWave * 28);
+    procCtx.lineTo(cx - 75, h * 0.41 - armWave * 24);
+    procCtx.moveTo(cx + 28, h * 0.47 - bob * 0.7);
+    procCtx.lineTo(cx + 64, h * 0.38 + armWave * 24);
+    procCtx.lineTo(cx + 75, h * 0.33 + armWave * 28);
     procCtx.stroke();
     procCtx.restore();
 
-    const btnX = cx + Math.sin(angle) * 26 * s;
+    // Coal Buttons
+    const btnX = cx + Math.sin(angle) * 18;
     [0.45, 0.52, 0.59].forEach((yf) => {
-      drawShadedSphere(procCtx, btnX, h * yf - bob * 0.7, 4.5 * s, [45, 45, 55], lightDir);
+      drawShadedSphere(procCtx, btnX, h * yf - bob * 0.7, 3.2, [45, 45, 55], lightDir);
     });
 
+    // Red Scarf
     const neckY = h * 0.37 - bob * 0.85;
     procCtx.save();
-    const scarfGrad = procCtx.createLinearGradient(cx - 40 * s, neckY, cx + 40 * s, neckY);
-    scarfGrad.addColorStop(0, '#991b1b');
-    scarfGrad.addColorStop(0.4, '#ef4444');
-    scarfGrad.addColorStop(1, '#7f1d1d');
-    procCtx.fillStyle = scarfGrad;
+    procCtx.fillStyle = '#dc2626';
     procCtx.beginPath();
-    procCtx.roundRect(cx - 38 * s, neckY - 6 * s, 76 * s, 14 * s, 7 * s);
+    procCtx.roundRect(cx - 26, neckY - 4, 52, 9.5, 5);
     procCtx.fill();
 
-    const tailSway = Math.sin((t / state.loopDuration) * Math.PI * 4) * 8 * s;
+    const tailSway = Math.sin((t / state.loopDuration) * Math.PI * 4) * 5.5;
     procCtx.beginPath();
-    procCtx.moveTo(cx + (16 + Math.sin(angle) * 14) * s, neckY + 4 * s);
-    procCtx.quadraticCurveTo(cx + 28 * s + tailSway, neckY + 26 * s, cx + 22 * s + tailSway * 1.3, neckY + 48 * s);
-    procCtx.lineTo(cx + 35 * s + tailSway * 1.3, neckY + 46 * s);
-    procCtx.quadraticCurveTo(cx + 38 * s + tailSway, neckY + 24 * s, cx + (28 + Math.sin(angle) * 14) * s, neckY + 4 * s);
+    procCtx.moveTo(cx + 11 + Math.sin(angle) * 9, neckY + 3);
+    procCtx.quadraticCurveTo(cx + 19 + tailSway, neckY + 18, cx + 15 + tailSway * 1.3, neckY + 33);
+    procCtx.lineTo(cx + 24 + tailSway * 1.3, neckY + 31);
+    procCtx.quadraticCurveTo(cx + 26 + tailSway, neckY + 16, cx + 19 + Math.sin(angle) * 9, neckY + 3);
     procCtx.fill();
     procCtx.restore();
 
+    // Head Sphere
     const headY = h * 0.29 - bob;
-    drawShadedSphere(procCtx, cx, headY, 35 * s, [250, 252, 255], lightDir);
+    drawShadedSphere(procCtx, cx, headY, 24, [250, 252, 255], lightDir);
 
-    const eyeCenter = cx + Math.sin(angle) * 20 * s;
-    drawShadedSphere(procCtx, eyeCenter - 11 * s, headY - 8 * s, 3.8 * s, [30, 30, 35], lightDir);
-    drawShadedSphere(procCtx, eyeCenter + 11 * s, headY - 8 * s, 3.8 * s, [30, 30, 35], lightDir);
+    // Eyes
+    const eyeCenter = cx + Math.sin(angle) * 14;
+    drawShadedSphere(procCtx, eyeCenter - 7.5, headY - 5.5, 2.6, [30, 30, 35], lightDir);
+    drawShadedSphere(procCtx, eyeCenter + 7.5, headY - 5.5, 2.6, [30, 30, 35], lightDir);
 
+    // Carrot Nose
     procCtx.save();
-    const noseTipX = eyeCenter + Math.sin(angle) * 24 * s;
-    const noseGrad = procCtx.createLinearGradient(eyeCenter, headY - 3 * s, noseTipX, headY + 5 * s);
-    noseGrad.addColorStop(0, '#fb923c');
-    noseGrad.addColorStop(1, '#c2410c');
-    procCtx.fillStyle = noseGrad;
+    const noseTipX = eyeCenter + Math.sin(angle) * 16;
+    procCtx.fillStyle = '#f97316';
     procCtx.beginPath();
-    procCtx.moveTo(eyeCenter - 4 * s, headY - 3 * s);
-    procCtx.lineTo(noseTipX, headY + 3 * s);
-    procCtx.lineTo(eyeCenter + 4 * s, headY + 5 * s);
+    procCtx.moveTo(eyeCenter - 2.8, headY - 2);
+    procCtx.lineTo(noseTipX, headY + 2);
+    procCtx.lineTo(eyeCenter + 2.8, headY + 3.5);
     procCtx.closePath();
     procCtx.fill();
     procCtx.restore();
 
+    // Coal Smile
     for (let i = -2; i <= 2; i++) {
-      const sx = eyeCenter + i * 5.5 * s;
-      const sy = headY + (13 - Math.abs(i) * 1.3) * s;
-      drawShadedSphere(procCtx, sx, sy, 2.2 * s, [35, 35, 40], lightDir);
+      const sx = eyeCenter + i * 3.8;
+      const sy = headY + 9 - Math.abs(i) * 0.9;
+      drawShadedSphere(procCtx, sx, sy, 1.6, [35, 35, 40], lightDir);
     }
 
-    const hatBaseY = headY - 28 * s;
+    // 3D Top Hat
+    const hatBaseY = headY - 19;
     procCtx.save();
-    const brimGrad = procCtx.createLinearGradient(cx - 48 * s, hatBaseY, cx + 48 * s, hatBaseY);
-    brimGrad.addColorStop(0, '#52525b');
-    brimGrad.addColorStop(0.35, '#d4d4d8');
-    brimGrad.addColorStop(1, '#27272a');
-    procCtx.fillStyle = brimGrad;
+    procCtx.fillStyle = '#71717a';
     procCtx.beginPath();
-    procCtx.ellipse(cx, hatBaseY, 46 * s, 10 * s, 0, 0, Math.PI * 2);
+    procCtx.ellipse(cx, hatBaseY, 31, 6.8, 0, 0, Math.PI * 2);
     procCtx.fill();
 
-    const crownGrad = procCtx.createLinearGradient(cx - 28 * s, hatBaseY - 46 * s, cx + 28 * s, hatBaseY);
+    const crownGrad = procCtx.createLinearGradient(cx - 19, hatBaseY - 31, cx + 19, hatBaseY);
     crownGrad.addColorStop(0, '#52525b');
-    crownGrad.addColorStop(0.32, '#e4e4e7');
+    crownGrad.addColorStop(0.35, '#e4e4e7');
     crownGrad.addColorStop(0.75, '#52525b');
     crownGrad.addColorStop(1, '#18181b');
     procCtx.fillStyle = crownGrad;
-    procCtx.fillRect(cx - 27 * s, hatBaseY - 46 * s, 54 * s, 46 * s);
+    procCtx.fillRect(cx - 18, hatBaseY - 31, 36, 31);
 
     procCtx.fillStyle = '#a1a1aa';
     procCtx.beginPath();
-    procCtx.ellipse(cx, hatBaseY - 46 * s, 27 * s, 6 * s, 0, 0, Math.PI * 2);
+    procCtx.ellipse(cx, hatBaseY - 31, 18, 4.2, 0, 0, Math.PI * 2);
     procCtx.fill();
 
     procCtx.fillStyle = '#dc2626';
-    procCtx.fillRect(cx - 27 * s, hatBaseY - 11 * s, 54 * s, 7 * s);
+    procCtx.fillRect(cx - 18, hatBaseY - 7.5, 36, 4.8);
     procCtx.restore();
   }
 
-  // 2. 3D RGB Holiday Tree (32-bit Z-Buffered Pixel Buffer)
+  // 5.2 Holiday Tree (Precomputed 3D Point Cloud + Z-Buffer)
   const TREE_POINTS = (() => {
     const pts = [];
-    for (let i = 0; i < 1450; i++) {
+    for (let i = 0; i < 1650; i++) {
       const u = Math.random();
       const tierWave = 0.78 + 0.22 * Math.sin(u * Math.PI * 11);
       const maxR = (0.04 + u * 0.42) * tierWave;
@@ -1640,15 +1670,15 @@
         x: Math.cos(theta) * r,
         y: -0.42 + u * 0.82,
         z: Math.sin(theta) * r,
-        size: 1.9,
-        r: (18 * shade) | 0,
-        g: ((135 + Math.random() * 85) * shade) | 0,
-        b: ((45 + Math.random() * 45) * shade) | 0,
-        glow: false
+        rad: 1.7,
+        r: Math.round(18 * shade),
+        g: Math.round((135 + Math.random() * 85) * shade),
+        b: Math.round((45 + Math.random() * 45) * shade),
+        type: 0
       });
     }
-    for (let i = 0; i < 280; i++) {
-      const u = i / 280;
+    for (let i = 0; i < 320; i++) {
+      const u = i / 320;
       const tierWave = 0.82 + 0.18 * Math.sin(u * Math.PI * 11);
       const r = (0.05 + u * 0.43) * tierWave;
       const theta = u * Math.PI * 9;
@@ -1656,28 +1686,32 @@
         x: Math.cos(theta) * r,
         y: -0.40 + u * 0.79,
         z: Math.sin(theta) * r,
-        size: 2.3,
+        rad: 2.2,
         r: 255, g: 210, b: 65,
-        glow: true
+        type: 1
       });
     }
-    const baubleColors = [[255, 42, 42], [255, 195, 20], [230, 236, 245]];
-    for (let i = 0; i < 64; i++) {
-      const u = 0.12 + (i / 64) * 0.84;
+    const baubleColors = [
+      [255, 42, 42],
+      [255, 195, 20],
+      [230, 236, 245]
+    ];
+    for (let i = 0; i < 68; i++) {
+      const u = 0.12 + (i / 68) * 0.84;
       const tierWave = 0.84 + 0.16 * Math.sin(u * Math.PI * 11);
       const r = (0.05 + u * 0.42) * tierWave;
       const theta = i * 2.39996;
-      const c = baubleColors[i % baubleColors.length];
+      const col = baubleColors[i % baubleColors.length];
       pts.push({
         x: Math.cos(theta) * r,
         y: -0.41 + u * 0.80,
         z: Math.sin(theta) * r,
-        size: 3.4,
-        r: c[0], g: c[1], b: c[2],
-        glow: false
+        rad: 3.4,
+        r: col[0], g: col[1], b: col[2],
+        type: 2
       });
     }
-    for (let i = 0; i < 75; i++) {
+    for (let i = 0; i < 90; i++) {
       const u = Math.random();
       const theta = Math.random() * Math.PI * 2;
       const r = 0.055 * Math.sqrt(Math.random());
@@ -1685,9 +1719,9 @@
         x: Math.cos(theta) * r,
         y: 0.40 + u * 0.11,
         z: Math.sin(theta) * r,
-        size: 2.2,
+        rad: 2.1,
         r: 135, g: 85, b: 45,
-        glow: false
+        type: 0
       });
     }
     return pts;
@@ -1698,582 +1732,501 @@
     const rotY = (t / state.loopDuration) * Math.PI * 2;
     const cosR = Math.cos(rotY);
     const sinR = Math.sin(rotY);
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.51;
-    const scaleW = PW * 0.68;
-    const scaleH = PH * 0.76;
+    const fov = 1.65;
 
     for (let i = 0; i < TREE_POINTS.length; i++) {
       const p = TREE_POINTS[i];
       const rx = p.x * cosR - p.z * sinR;
       const rz = p.x * sinR + p.z * cosR;
-      const scale = 1.65 / (2.35 + rz);
+      const scale = fov / (fov + rz + 0.7);
+      const sx = PW * 0.5 + rx * PW * 0.68 * scale;
+      const sy = PH * 0.51 + p.y * PH * 0.76 * scale;
       const depthFade = Math.max(0.32, Math.min(1.15, 0.85 - rz * 0.75));
-      const twinkle = p.glow ? (0.8 + 0.25 * Math.sin(t * 7 + i)) : 1.0;
+      const twinkle = p.type === 1 ? (0.8 + 0.25 * Math.sin(t * 7 + i)) : 1;
       const mult = depthFade * twinkle;
-      plotZPoint(
-        halfW + rx * scaleW * scale,
-        halfH + p.y * scaleH * scale,
-        rz,
-        p.size * scale,
-        Math.min(255, (p.r * mult) | 0),
-        Math.min(255, (p.g * mult) | 0),
-        Math.min(255, (p.b * mult) | 0)
-      );
+      const cr = Math.min(255, (p.r * mult) | 0);
+      const cg = Math.min(255, (p.g * mult) | 0);
+      const cb = Math.min(255, (p.b * mult) | 0);
+      plotZDisc32(sx, sy, p.rad * scale, rz, packAbgr(cr, cg, cb));
     }
 
     const starPulse = 1 + 0.14 * Math.sin(t * 6);
-    plotZPoint(halfW, PH * 0.155, -0.5, 7.5 * starPulse, 255, 245, 130);
+    plotZDisc32(PW * 0.5, PH * 0.155, 8.5 * starPulse, -0.1, packAbgr(255, 240, 120));
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 3. 3D Ringed Saturn (32-bit Z-Buffered Pixel Buffer)
-  const SATURN_POINTS = (() => {
-    const pts = [];
-    for (let i = 0; i < 1200; i++) {
-      const u = Math.random() * 2 - 1;
-      const theta = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.max(0, 1 - u * u)) * 0.28;
-      const band = Math.sin(u * 14) * 0.14;
-      pts.push({
-        x: Math.cos(theta) * r,
-        y: u * 0.26,
-        z: Math.sin(theta) * r,
-        size: 2.3,
-        r: Math.min(255, Math.max(40, (225 + band * 180) | 0)),
-        g: Math.min(255, Math.max(40, (185 + band * 140) | 0)),
-        b: Math.min(255, Math.max(30, (125 + band * 90) | 0))
-      });
-    }
-    for (let i = 0; i < 1250; i++) {
-      const ringR = 0.36 + Math.random() * 0.28;
-      if (ringR > 0.51 && ringR < 0.54) continue;
-      const theta = Math.random() * Math.PI * 2;
-      const bandTone = 0.72 + 0.28 * Math.sin(ringR * 65);
-      pts.push({
-        x: Math.cos(theta) * ringR,
-        y: (Math.random() - 0.5) * 0.008,
-        z: Math.sin(theta) * ringR,
-        size: 1.6,
-        r: (235 * bandTone) | 0,
-        g: (205 * bandTone) | 0,
-        b: (160 * bandTone) | 0
-      });
-    }
-    return pts;
-  })();
-
+  // 5.3 Saturn Rings (Analytical Ray-Sphere & Ring-Plane Intersection)
   function renderProceduralSaturn(t) {
     clearProcBuffer();
-    const spin = (t / state.loopDuration) * Math.PI * 2;
-    const tiltZ = 0.36;
-    const tiltX = 0.42;
-    const cosS = Math.cos(spin), sinS = Math.sin(spin);
-    const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
-    const cosZ = Math.cos(tiltZ), sinZ = Math.sin(tiltZ);
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
-    const scaleBase = PW * 0.76;
+    const rot = (t / state.loopDuration) * Math.PI * 2;
+    const cx = PW * 0.5;
+    const cy = PH * 0.5;
+    const R = 44;
+    const tilt = 0.42;
+    const roll = -0.32;
+    const cosRoll = Math.cos(roll), sinRoll = Math.sin(roll);
+    const cosTilt = Math.cos(tilt), sinTilt = Math.sin(tilt);
 
-    for (let i = 0; i < SATURN_POINTS.length; i++) {
-      const p = SATURN_POINTS[i];
-      const x1 = p.x * cosS - p.z * sinS;
-      const z1 = p.x * sinS + p.z * cosS;
-      const y1 = p.y;
-      const y2 = y1 * cosX - z1 * sinX;
-      const z2 = y1 * sinX + z1 * cosX;
-      const x3 = x1 * cosZ - y2 * sinZ;
-      const y3 = x1 * sinZ + y2 * cosZ;
-      const scale = 1.8 / (2.4 + z2);
-      const shade = Math.max(0.28, Math.min(1.18, 0.78 - x3 * 0.55 - y3 * 0.45));
-      plotZPoint(
-        halfW + x3 * scaleBase * scale,
-        halfH + y3 * scaleBase * scale,
-        z2,
-        p.size * scale,
-        Math.min(255, (p.r * shade) | 0),
-        Math.min(255, (p.g * shade) | 0),
-        Math.min(255, (p.b * shade) | 0)
-      );
+    // Light direction
+    const lx = -0.58, ly = -0.52, lz = 0.62;
+
+    for (let y = 0; y < PH; y++) {
+      const dy = y - cy;
+      for (let x = 0; x < PW; x++) {
+        const dx = x - cx;
+        // Un-roll screen coords
+        const ux = dx * cosRoll - dy * sinRoll;
+        const uy = dx * sinRoll + dy * cosRoll;
+
+        // 1. Check Sphere intersection
+        const r2 = ux * ux + uy * uy;
+        if (r2 <= R * R) {
+          const uz = Math.sqrt(R * R - r2);
+          const nx = ux / R, ny = uy / R, nz = uz / R;
+          // Latitude on tilted planet
+          const lat = ny * cosTilt - nz * sinTilt;
+          const lon = Math.atan2(nx, nz * cosTilt + ny * sinTilt) + rot;
+          const band = 0.84 + 0.16 * Math.sin(lat * 26 + Math.sin(lon * 2) * 0.2);
+          const diff = Math.max(0.14, nx * lx + ny * ly + nz * lz);
+          const cr = Math.min(255, (238 * band * diff) | 0);
+          const cg = Math.min(255, (194 * band * diff) | 0);
+          const cb = Math.min(255, (132 * band * diff) | 0);
+          plotZPixel32(x, y, -uz, packAbgr(cr, cg, cb));
+        }
+
+        // 2. Check Tilted Ring Plane intersection (ray along +Z)
+        if (Math.abs(sinTilt) > 0.05) {
+          const rz = -uy / sinTilt;
+          const ryRing = uy * cosTilt - rz * sinTilt;
+          const dist = Math.sqrt(ux * ux + ryRing * ryRing);
+          if (dist >= R * 1.28 && dist <= R * 2.28) {
+            // Cassini division gap
+            if (dist > R * 1.84 && dist < R * 1.92) continue;
+            const ringWave = 0.72 + 0.28 * Math.sin(dist * 1.35);
+            const angle = Math.atan2(ryRing, ux) + rot * 0.5;
+            const shimmer = 0.92 + 0.08 * Math.sin(angle * 6);
+            const cr = Math.min(255, (226 * ringWave * shimmer) | 0);
+            const cg = Math.min(255, (196 * ringWave * shimmer) | 0);
+            const cb = Math.min(255, (152 * ringWave * shimmer) | 0);
+            plotZPixel32(x, y, -rz, packAbgr(cr, cg, cb));
+          }
+        }
+      }
     }
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 4. 3D Shaded Torus / Donut (Fast Typed-Array Z-Buffer)
+  // 5.4 3D Torus (Classic High-Speed Z-Buffered Donut)
   function renderProceduralDonut(t) {
     clearProcBuffer();
     const A = (t / state.loopDuration) * Math.PI * 2;
     const B = A * 0.5;
     const cosA = Math.cos(A), sinA = Math.sin(A);
     const cosB = Math.cos(B), sinB = Math.sin(B);
-    const R1 = 0.16, R2 = 0.34, K2 = 2.2;
-    const K1 = PW * K2 * 0.44;
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
+    const R1 = 1.0, R2 = 2.1, K2 = 5.2, K1 = PW * 0.56;
 
-    for (let theta = 0; theta < 6.28318; theta += 0.11) {
-      const costheta = Math.cos(theta), sintheta = Math.sin(theta);
-      const circlex = R2 + R1 * costheta;
-      const circley = R1 * sintheta;
+    for (let theta = 0; theta < 6.2832; theta += 0.065) {
+      const cosT = Math.cos(theta), sinT = Math.sin(theta);
+      const circleX = R2 + R1 * cosT;
+      const circleY = R1 * sinT;
 
-      for (let phi = 0; phi < 6.28318; phi += 0.045) {
-        const cosphi = Math.cos(phi), sinphi = Math.sin(phi);
-        const x = circlex * (cosB * cosphi + sinA * sinB * sinphi) - circley * cosA * sinB;
-        const y = circlex * (sinB * cosphi - sinA * cosB * sinphi) + circley * cosA * cosB;
-        const z = K2 + cosA * circlex * sinphi + circley * sinA;
+      for (let phi = 0; phi < 6.2832; phi += 0.024) {
+        const cosP = Math.cos(phi), sinP = Math.sin(phi);
+        const x = circleX * (cosB * cosP + sinA * sinB * sinP) - circleY * cosA * sinB;
+        const y = circleX * (sinB * cosP - sinA * cosB * sinP) + circleY * cosA * cosB;
+        const z = K2 + cosA * circleX * sinP + circleY * sinA;
         const ooz = 1 / z;
 
-        const xp = (halfW + K1 * ooz * x) | 0;
-        const yp = (halfH - K1 * ooz * y) | 0;
-        if (xp < 0 || xp >= PW || yp < 0 || yp >= PH) continue;
+        const xp = (PW * 0.5 + K1 * ooz * x) | 0;
+        const yp = (PH * 0.5 - K1 * ooz * y) | 0;
 
-        const L = cosphi * costheta * sinB - cosA * costheta * sinphi - sinA * sintheta +
-                  cosB * (cosA * sintheta - costheta * sinA * sinphi);
-
-        const lum = Math.max(0.14, Math.min(1.0, (L + 0.85) * 0.58));
-        const val = (45 + lum * 210) | 0;
-        const col32 = (255 << 24) | (val << 16) | (val << 8) | val;
-
-        const idx = yp * PW + xp;
-        if (z < procZBuf[idx]) {
-          procZBuf[idx] = z;
-          procBuf32[idx] = col32;
-        }
-        if (xp + 1 < PW && z < procZBuf[idx + 1]) {
-          procZBuf[idx + 1] = z;
-          procBuf32[idx + 1] = col32;
-        }
-        if (yp + 1 < PH && z < procZBuf[idx + PW]) {
-          procZBuf[idx + PW] = z;
-          procBuf32[idx + PW] = col32;
-        }
+        const L = cosP * cosT * sinB - cosA * cosT * sinP - sinA * sinT +
+                  cosB * (cosA * sinT - cosT * sinA * sinP);
+        const lum = Math.max(0.14, Math.min(1.0, 0.26 + L * 0.65));
+        const v = (lum * 255) | 0;
+        plotZPixel32(xp, yp, z, packAbgr(v, v, v));
       }
     }
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 5. 3D Faceted Crystal Gem
+  // 5.5 Crystal Gem (Flat-Shaded 3D Octahedral / Hexagonal Prism)
   function renderProceduralCrystal(t) {
     const w = PW, h = PH;
     procCtx.fillStyle = '#000000';
     procCtx.fillRect(0, 0, w, h);
 
-    const rot = (t / state.loopDuration) * Math.PI * 2;
-    const sides = 6;
-    const verts = [[0, -0.48, 0]];
-    for (let i = 0; i < sides; i++) {
-      const a = rot + (i / sides) * Math.PI * 2;
-      verts.push([Math.cos(a) * 0.28, -0.14, Math.sin(a) * 0.28]);
-    }
-    for (let i = 0; i < sides; i++) {
-      const a = rot + ((i + 0.5) / sides) * Math.PI * 2;
-      verts.push([Math.cos(a) * 0.24, 0.16, Math.sin(a) * 0.24]);
-    }
-    verts.push([0, 0.48, 0]);
+    const rotY = (t / state.loopDuration) * Math.PI * 2;
+    const tiltX = 0.28 + Math.sin(rotY) * 0.14;
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
 
-    const proj = verts.map(([x, y, z]) => {
-      const s = 1.9 / (2.3 + z);
-      return { sx: w * 0.5 + x * w * 0.78 * s, sy: h * 0.5 + y * h * 0.78 * s, z };
-    });
+    const sides = 6;
+    const topApex = [0, -1.05, 0];
+    const botApex = [0, 1.05, 0];
+    const upperRing = [];
+    const lowerRing = [];
+    for (let i = 0; i < sides; i++) {
+      const a = (i / sides) * Math.PI * 2;
+      upperRing.push([Math.cos(a) * 0.56, -0.34, Math.sin(a) * 0.56]);
+      lowerRing.push([Math.cos(a) * 0.56, 0.34, Math.sin(a) * 0.56]);
+    }
+
+    const project = ([vx, vy, vz]) => {
+      const rx = vx * cosY - vz * sinY;
+      const rz1 = vx * sinY + vz * cosY;
+      const ry = vy * cosX - rz1 * sinX;
+      const rz = vy * sinX + rz1 * cosX;
+      const s = 2.6 / (2.6 + rz + 1.2);
+      return {
+        x: w * 0.5 + rx * w * 0.48 * s,
+        y: h * 0.5 + ry * h * 0.48 * s,
+        z: rz,
+        v: [rx, ry, rz]
+      };
+    };
 
     const faces = [];
     for (let i = 0; i < sides; i++) {
-      const next = (i + 1) % sides;
-      faces.push([0, 1 + i, 1 + next, 0]);
-      faces.push([1 + i, 1 + sides + i, 1 + next, 1]);
-      faces.push([1 + next, 1 + sides + i, 1 + sides + next, 2]);
-      faces.push([1 + sides + i, verts.length - 1, 1 + sides + next, 3]);
+      const n = (i + 1) % sides;
+      faces.push([topApex, upperRing[i], upperRing[n]]);
+      faces.push([upperRing[i], lowerRing[i], lowerRing[n], upperRing[n]]);
+      faces.push([botApex, lowerRing[n], lowerRing[i]]);
     }
 
-    const sortedFaces = faces.map(f => ({
-      f,
-      avgZ: (proj[f[0]].z + proj[f[1]].z + proj[f[2]].z) / 3
-    })).sort((a, b) => b.avgZ - a.avgZ);
+    const projectedFaces = faces.map(pts => {
+      const p = pts.map(project);
+      // Cross product normal in view space
+      const ax = p[1].v[0] - p[0].v[0], ay = p[1].v[1] - p[0].v[1], az = p[1].v[2] - p[0].v[2];
+      const bx = p[2].v[0] - p[0].v[0], by = p[2].v[1] - p[0].v[1], bz = p[2].v[2] - p[0].v[2];
+      let nx = ay * bz - az * by;
+      let ny = az * bx - ax * bz;
+      let nz = ax * by - ay * bx;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      nx /= len; ny /= len; nz /= len;
+      const avgZ = p.reduce((acc, q) => acc + q.z, 0) / p.length;
+      return { p, nx, ny, nz, avgZ };
+    }).sort((a, b) => b.avgZ - a.avgZ);
 
-    for (const { f } of sortedFaces) {
-      const p0 = proj[f[0]], p1 = proj[f[1]], p2 = proj[f[2]];
-      const cross = (p1.sx - p0.sx) * (p2.sy - p0.sy) - (p1.sy - p0.sy) * (p2.sx - p0.sx);
-      if (cross <= 0) continue;
-      const shade = Math.max(0.25, Math.min(1.0, 0.45 + (cross / (w * h * 0.032)) * 0.65));
-      const r = (55 * shade) | 0;
-      const g = (210 * shade + 35) | 0;
-      const b = (255 * shade) | 0;
+    for (const f of projectedFaces) {
+      if (f.nz > 0.15) continue; // Back-face cull
+      const light = Math.max(0.22, Math.min(1.0, 0.35 + (-f.nx * 0.5 - f.ny * 0.5 - f.nz * 0.7) * 0.72));
+      const r = Math.min(255, Math.round(55 + light * 155));
+      const g = Math.min(255, Math.round(165 + light * 90));
+      const b = Math.min(255, Math.round(220 + light * 35));
       procCtx.fillStyle = `rgb(${r},${g},${b})`;
-      procCtx.strokeStyle = `rgb(${Math.min(255, r + 90)},${Math.min(255, g + 60)},255)`;
-      procCtx.lineWidth = 1.2;
+      procCtx.strokeStyle = `rgba(235, 252, 255, 0.55)`;
+      procCtx.lineWidth = 1;
       procCtx.beginPath();
-      procCtx.moveTo(p0.sx, p0.sy);
-      procCtx.lineTo(p1.sx, p1.sy);
-      procCtx.lineTo(p2.sx, p2.sy);
+      procCtx.moveTo(f.p[0].x, f.p[0].y);
+      for (let i = 1; i < f.p.length; i++) procCtx.lineTo(f.p[i].x, f.p[i].y);
       procCtx.closePath();
       procCtx.fill();
       procCtx.stroke();
     }
   }
 
-  // 6. 3D Double Helix DNA
+  // 5.6 DNA Double Helix
   function renderProceduralDna(t) {
-    const w = PW, h = PH;
-    const s = w / 360;
-    procCtx.fillStyle = '#000000';
-    procCtx.fillRect(0, 0, w, h);
+    clearProcBuffer();
+    const rot = (t / state.loopDuration) * Math.PI * 4;
+    const pairs = 28;
+    const cx = PW * 0.5;
 
-    const phase = (t / state.loopDuration) * Math.PI * 4;
-    const items = [];
-    const steps = 38;
+    for (let i = 0; i < pairs; i++) {
+      const u = i / (pairs - 1);
+      const y = PH * (0.14 + u * 0.72);
+      const angle = rot + u * Math.PI * 3.2;
+      const x1 = Math.cos(angle) * 46;
+      const z1 = Math.sin(angle);
+      const x2 = -x1;
+      const z2 = -z1;
 
-    for (let i = 0; i < steps; i++) {
-      const u = i / (steps - 1);
-      const y = (-0.42 + u * 0.84) * h * 0.88 + h * 0.5;
-      const theta = u * Math.PI * 3.2 + phase;
-      const r = w * 0.21;
-
-      const x1 = w * 0.5 + Math.cos(theta) * r;
-      const z1 = Math.sin(theta);
-      const x2 = w * 0.5 + Math.cos(theta + Math.PI) * r;
-      const z2 = Math.sin(theta + Math.PI);
-
-      if (i % 2 === 0) {
-        items.push({ type: 'rung', x1, x2, y, z: (z1 + z2) * 0.5 });
+      // Base-pair connecting rung
+      const steps = 18;
+      for (let s = 1; s < steps; s++) {
+        const f = s / steps;
+        const rx = cx + x1 + (x2 - x1) * f;
+        const rz = z1 + (z2 - z1) * f;
+        const fade = 0.55 + 0.45 * (1 - rz * 0.5);
+        const col = f < 0.5
+          ? packAbgr((45 * fade) | 0, (212 * fade) | 0, (191 * fade) | 0)
+          : packAbgr((244 * fade) | 0, (114 * fade) | 0, (182 * fade) | 0);
+        plotZDisc32(rx, y, 1.5, rz, col);
       }
-      items.push({ type: 'node', x: x1, y, z: z1, col: [45, 220, 255] });
-      items.push({ type: 'node', x: x2, y, z: z2, col: [255, 75, 165] });
-    }
 
-    items.sort((a, b) => b.z - a.z);
-
-    for (const it of items) {
-      if (it.type === 'rung') {
-        procCtx.strokeStyle = 'rgba(195, 215, 235, 0.55)';
-        procCtx.lineWidth = Math.max(1.5, 2.5 * s);
-        procCtx.beginPath();
-        procCtx.moveTo(it.x1, it.y);
-        procCtx.lineTo(it.x2, it.y);
-        procCtx.stroke();
-      } else {
-        const scale = 0.72 + (1 - it.z) * 0.25;
-        const rad = 7.5 * s * scale;
-        drawShadedSphere(
-          procCtx,
-          it.x,
-          it.y,
-          rad,
-          [(it.col[0] * scale) | 0, (it.col[1] * scale) | 0, (it.col[2] * scale) | 0],
-          { x: -0.4, y: -0.5 }
-        );
-      }
+      // Strand A & Strand B backbone spheres
+      const f1 = 0.55 + 0.45 * (1 - z1 * 0.5);
+      const f2 = 0.55 + 0.45 * (1 - z2 * 0.5);
+      plotZDisc32(cx + x1, y, 4.4 * (1 - z1 * 0.16), z1, packAbgr((56 * f1) | 0, (189 * f1) | 0, (248 * f1) | 0));
+      plotZDisc32(cx + x2, y, 4.4 * (1 - z2 * 0.16), z2, packAbgr((251 * f2) | 0, (146 * f2) | 0, (60 * f2) | 0));
     }
+    procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 7. 3D Rotating Cyber Globe (32-bit Z-Buffered Pixel Buffer)
-  const GLOBE_POINTS = (() => {
-    const pts = [];
-    for (let lat = -75; lat <= 75; lat += 15) {
-      const phi = (lat * Math.PI) / 180;
-      const y = Math.sin(phi) * 0.42;
-      const rLat = Math.cos(phi) * 0.42;
-      for (let lon = 0; lon < 360; lon += 6) {
-        const th = (lon * Math.PI) / 180;
-        pts.push({
-          x: Math.cos(th) * rLat,
-          y,
-          z: Math.sin(th) * rLat,
-          size: 1.5,
-          r: 30, g: 165, b: 195
-        });
-      }
-    }
-    for (let lon = 0; lon < 360; lon += 20) {
-      const th = (lon * Math.PI) / 180;
-      for (let lat = -85; lat <= 85; lat += 5) {
-        const phi = (lat * Math.PI) / 180;
-        const rLat = Math.cos(phi) * 0.42;
-        pts.push({
-          x: Math.cos(th) * rLat,
-          y: Math.sin(phi) * 0.42,
-          z: Math.sin(th) * rLat,
-          size: 1.5,
-          r: 30, g: 165, b: 195
-        });
-      }
-    }
-    for (let i = 0; i < 650; i++) {
-      const u = Math.random() * 1.76 - 0.88;
-      const th = Math.random() * Math.PI * 2;
-      const blob = Math.sin(th * 3 + u * 4) + Math.cos(th * 2 - u * 5);
-      if (blob > 0.35) {
-        const rLat = Math.sqrt(Math.max(0, 1 - u * u)) * 0.425;
-        pts.push({
-          x: Math.cos(th) * rLat,
-          y: u * 0.425,
-          z: Math.sin(th) * rLat,
-          size: 2.3,
-          r: 75, g: 255, b: 155
-        });
-      }
-    }
-    return pts;
-  })();
-
+  // 5.7 3D Globe
   function renderProceduralGlobe(t) {
     clearProcBuffer();
-    const rotY = (t / state.loopDuration) * Math.PI * 2;
-    const tilt = 0.25;
-    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-    const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
-    const scaleBase = PW * 0.78;
+    const rot = (t / state.loopDuration) * Math.PI * 2;
+    const cx = PW * 0.5, cy = PH * 0.5;
+    const R = 64;
+    const lx = -0.55, ly = -0.45, lz = 0.7;
 
-    for (let i = 0; i < GLOBE_POINTS.length; i++) {
-      const p = GLOBE_POINTS[i];
-      const rx = p.x * cosY - p.z * sinY;
-      const rz = p.x * sinY + p.z * cosY;
-      const ry = p.y * cosT - rz * sinT;
-      const fz = p.y * sinT + rz * cosT;
-      const scale = 1.7 / (2.3 + fz);
-      const fade = Math.max(0.24, Math.min(1.15, 0.75 - fz * 0.95));
-      plotZPoint(
-        halfW + rx * scaleBase * scale,
-        halfH + ry * scaleBase * scale,
-        fz,
-        p.size * scale,
-        Math.min(255, (p.r * fade) | 0),
-        Math.min(255, (p.g * fade) | 0),
-        Math.min(255, (p.b * fade) | 0)
-      );
+    for (let y = (cy - R) | 0; y <= (cy + R) | 0; y++) {
+      const dy = y - cy;
+      for (let x = (cx - R) | 0; x <= (cx + R) | 0; x++) {
+        const dx = x - cx;
+        const r2 = dx * dx + dy * dy;
+        if (r2 > R * R) continue;
+        const dz = Math.sqrt(R * R - r2);
+        const nx = dx / R, ny = dy / R, nz = dz / R;
+        const lat = Math.asin(ny);
+        const lon = Math.atan2(nx, nz) + rot;
+
+        // Procedural continents + lat/lon grid
+        const cont = Math.sin(lon * 2.2 + Math.cos(lat * 3.1)) + Math.cos(lat * 3.5 - Math.sin(lon * 1.8));
+        const gridLine = Math.abs(Math.sin(lat * 6)) < 0.06 || Math.abs(Math.sin(lon * 6)) < 0.06;
+        const diff = Math.max(0.18, nx * lx + ny * ly + nz * lz);
+
+        let r, g, b;
+        if (cont > 0.35) {
+          r = 34 * diff; g = 211 * diff; b = 135 * diff;
+        } else {
+          r = 18 * diff; g = 88 * diff; b = 175 * diff;
+        }
+        if (gridLine) {
+          r = Math.min(255, r + 48);
+          g = Math.min(255, g + 85);
+          b = Math.min(255, b + 95);
+        }
+        plotZPixel32(x, y, -dz, packAbgr(r | 0, g | 0, b | 0));
+      }
     }
+
+    // Orbiting satellite ring
+    for (let i = 0; i < 140; i++) {
+      const a = (i / 140) * Math.PI * 2 + rot * 1.5;
+      const ox = Math.cos(a) * 86;
+      const oz = Math.sin(a) * 86;
+      const oy = Math.sin(a) * 24;
+      plotZDisc32(cx + ox, cy + oy, i === 0 ? 3.5 : 1.3, oz, i === 0 ? packAbgr(255, 255, 255) : packAbgr(56, 189, 248));
+    }
+
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 8. 3D Pulsing Volumetric Heart (32-bit Z-Buffered Pixel Buffer)
-  const HEART_POINTS = (() => {
-    const pts = [];
-    for (let i = 0; i < 1450; i++) {
-      const u = Math.random() * Math.PI * 2;
-      const v = Math.random() * Math.PI;
-      const sinV = Math.sin(v);
-      const hx = 16 * Math.pow(Math.sin(u), 3) * sinV;
-      const hy = -(13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u)) * sinV;
-      const hz = 7.5 * Math.cos(v) * (0.65 + 0.35 * Math.sin(u));
-      pts.push({
-        x: hx * 0.024,
-        y: hy * 0.024 - 0.03,
-        z: hz * 0.024
-      });
-    }
-    return pts;
-  })();
-
+  // 5.8 3D Volumetric Heart
   function renderProceduralHeart(t) {
     clearProcBuffer();
-    const rotY = (t / state.loopDuration) * Math.PI * 2;
-    const beat = 1 + 0.09 * Math.pow(Math.sin(t * 5.5), 4);
+    const rotY = Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.65;
     const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
-    const scaleBase = PW * 0.80 * beat;
+    const beat = 1.0 + 0.08 * Math.pow(Math.max(0, Math.sin((t / state.loopDuration) * Math.PI * 8)), 3);
+    const cx = PW * 0.5, cy = PH * 0.52;
 
-    for (let i = 0; i < HEART_POINTS.length; i++) {
-      const p = HEART_POINTS[i];
-      const rx = p.x * cosY - p.z * sinY;
-      const rz = p.x * sinY + p.z * cosY;
-      const scale = 1.7 / (2.2 + rz);
-      const shade = Math.max(0.32, Math.min(1.2, 0.82 - rz * 1.1 - p.y * 0.4));
-      plotZPoint(
-        halfW + rx * scaleBase * scale,
-        halfH + p.y * scaleBase * scale,
-        rz,
-        2.3 * scale,
-        Math.min(255, (245 * shade) | 0),
-        Math.min(255, (42 * shade) | 0),
-        Math.min(255, (92 * shade) | 0)
-      );
+    for (let u = 0; u < Math.PI * 2; u += 0.045) {
+      const sinU = Math.sin(u);
+      const hx = 16 * sinU * sinU * sinU;
+      const hy = -(13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u));
+
+      for (let v = -1; v <= 1; v += 0.065) {
+        const thick = Math.sqrt(Math.max(0, 1 - v * v));
+        const px = hx * thick * 3.1 * beat;
+        const py = (hy * thick - 1.5) * 3.1 * beat;
+        const pz = v * 18 * thick * beat;
+
+        const rx = px * cosY - pz * sinY;
+        const rz = px * sinY + pz * cosY;
+
+        const shade = Math.max(0.25, Math.min(1.0, 0.62 - rz * 0.018 - py * 0.005));
+        const cr = Math.min(255, (250 * shade) | 0);
+        const cg = Math.min(255, (42 * shade + Math.max(0, shade - 0.78) * 320) | 0);
+        const cb = Math.min(255, (88 * shade + Math.max(0, shade - 0.78) * 320) | 0);
+        plotZDisc32(cx + rx, cy + py, 2.2, rz, packAbgr(cr, cg, cb));
+      }
     }
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 9. 3D Spiral Galaxy (32-bit Additive Pixel Buffer)
+  // 5.9 Spiral Galaxy
   const GALAXY_STARS = (() => {
-    const stars = [];
+    const arr = [];
     const arms = 3;
-    for (let i = 0; i < 1650; i++) {
+    for (let i = 0; i < 1800; i++) {
       const arm = i % arms;
-      const dist = Math.pow(Math.random(), 0.72) * 0.46;
-      const spread = (Math.random() - 0.5) * (0.28 + dist * 0.75);
-      const angle = (arm / arms) * Math.PI * 2 + dist * 9.5 + spread;
-      const thickness = (1 - dist * 1.6) * 0.045;
-      const isCore = dist < 0.12;
-      stars.push({
-        x: Math.cos(angle) * dist,
-        y: (Math.random() - 0.5) * Math.max(0.01, thickness),
-        z: Math.sin(angle) * dist,
-        size: isCore ? 2.2 : 1.5,
-        r: isCore ? 255 : (115 + Math.random() * 65) | 0,
-        g: isCore ? 235 : (175 + Math.random() * 65) | 0,
-        b: isCore ? 175 : 255
+      const dist = Math.pow(Math.random(), 0.72);
+      const swirl = dist * 4.4 + (arm * Math.PI * 2) / arms + (Math.random() - 0.5) * (0.48 * (1 - dist * 0.4));
+      const yOff = (Math.random() - 0.5) * 0.09 * (1 - dist * 0.7);
+      const coreMix = Math.max(0, 1 - dist * 1.9);
+      arr.push({
+        r: dist * 88,
+        angle: swirl,
+        y: yOff * 60,
+        size: dist < 0.18 ? 2.1 : 1.4,
+        cr: Math.round(120 + coreMix * 135 + (arm === 1 ? 65 : 0)),
+        cg: Math.round(165 + coreMix * 75),
+        cb: Math.round(255 - coreMix * 55)
       });
     }
-    return stars;
+    return arr;
   })();
 
   function renderProceduralGalaxy(t) {
     clearProcBuffer();
-    const spin = (t / state.loopDuration) * Math.PI * 2;
-    const tiltX = 0.68;
-    const cosS = Math.cos(spin), sinS = Math.sin(spin);
-    const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
-    const scaleBase = PW * 0.86;
+    const rot = (t / state.loopDuration) * Math.PI * 2;
+    const tilt = 0.52;
+    const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+    const cx = PW * 0.5, cy = PH * 0.5;
 
     for (let i = 0; i < GALAXY_STARS.length; i++) {
       const s = GALAXY_STARS[i];
-      const rx = s.x * cosS - s.z * sinS;
-      const rz = s.x * sinS + s.z * cosS;
-      const ry = s.y * cosX - rz * sinX;
-      const fz = s.y * sinX + rz * cosX;
-      const scale = 1.65 / (2.2 + fz);
-      const fade = Math.max(0.32, Math.min(1.15, 0.88 - fz * 0.8));
-      plotAdditivePoint(
-        halfW + rx * scaleBase * scale,
-        halfH + ry * scaleBase * scale,
-        s.size * scale,
-        Math.min(255, (s.r * fade) | 0),
-        Math.min(255, (s.g * fade) | 0),
-        Math.min(255, (s.b * fade) | 0)
+      const a = s.angle + rot;
+      const gx = Math.cos(a) * s.r;
+      const gz = Math.sin(a) * s.r;
+      const ry = s.y * cosT - gz * sinT;
+      const rz = s.y * sinT + gz * cosT;
+      const depth = Math.max(0.45, Math.min(1.15, 0.85 - rz * 0.004));
+      plotZDisc32(
+        cx + gx,
+        cy + ry,
+        s.size,
+        rz,
+        packAbgr(
+          Math.min(255, (s.cr * depth) | 0),
+          Math.min(255, (s.cg * depth) | 0),
+          Math.min(255, (s.cb * depth) | 0)
+        )
       );
     }
+    plotZDisc32(cx, cy, 10, 0, packAbgr(255, 245, 200));
     procCtx.putImageData(procImgData, 0, 0);
   }
 
-  // 10. 3D Relativistic Black Hole (32-bit Z-Buffered Pixel Buffer)
+  // 5.10 Relativistic Black Hole
   function renderProceduralBlackhole(t) {
     clearProcBuffer();
-    const spin = (t / state.loopDuration) * Math.PI * 4;
-    const halfW = PW * 0.5;
-    const halfH = PH * 0.5;
-    const scaleBase = PW * 0.84;
+    const rot = (t / state.loopDuration) * Math.PI * 4;
+    const cx = PW * 0.5, cy = PH * 0.5;
+    const ehR = 30;
 
-    for (let i = 0; i < 1200; i++) {
-      const u = i / 1200;
-      const r = 0.17 + (u % 0.29);
-      const theta = u * Math.PI * 36 + spin * (0.28 / r);
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
-      const y = Math.sin(theta * 2 + spin) * 0.012;
-      const tilt = 0.34;
-      const ry = y * Math.cos(tilt) - z * Math.sin(tilt);
-      const fz = y * Math.sin(tilt) + z * Math.cos(tilt);
-      const scale = 1.6 / (2.1 + fz);
-      const heat = Math.max(0.25, 1.15 - (r - 0.17) * 2.5);
-      plotZPoint(
-        halfW + x * scaleBase * scale,
-        halfH + ry * scaleBase * scale,
-        fz,
-        1.8 * scale,
-        Math.min(255, (255 * heat) | 0),
-        Math.min(255, (155 * heat * heat) | 0),
-        Math.min(255, (45 * heat * heat) | 0)
+    // Relativistic Accretion Disk
+    for (let i = 0; i < 2200; i++) {
+      const u = i / 2200;
+      const rad = ehR * 1.18 + u * 58;
+      const angle = u * 47.0 + rot * (1.6 - u * 0.7);
+      const dx = Math.cos(angle) * rad;
+      const dz = Math.sin(angle) * rad;
+      const dy = dz * 0.24;
+      // Doppler beaming (left side approaches -> brighter blue-white; right side recedes -> orange-red)
+      const doppler = Math.max(0.3, Math.min(1.35, 0.85 - (dx / 88) * 0.55));
+      const heat = 1 - u * 0.65;
+      const cr = Math.min(255, (255 * doppler) | 0);
+      const cg = Math.min(255, (155 * heat * doppler + 45) | 0);
+      const cb = Math.min(255, (65 * heat * doppler + Math.max(0, doppler - 0.9) * 280) | 0);
+      plotZDisc32(cx + dx, cy + dy, 1.8, dz, packAbgr(cr, cg, cb));
+    }
+
+    // Gravitationally Lensed Upper & Lower Einstein Ring Halos
+    for (let i = 0; i < 520; i++) {
+      const a = (i / 520) * Math.PI * 2;
+      const rad = ehR * 1.16 + Math.sin(a * 5 + rot) * 1.5;
+      const lx = Math.cos(a) * rad;
+      const ly = Math.sin(a) * rad * 0.92;
+      const doppler = Math.max(0.4, 0.9 - (lx / 45) * 0.45);
+      plotZDisc32(
+        cx + lx,
+        cy + ly,
+        2.1,
+        5,
+        packAbgr(
+          Math.min(255, (255 * doppler) | 0),
+          Math.min(255, (185 * doppler) | 0),
+          Math.min(255, (110 * doppler) | 0)
+        )
       );
     }
 
-    for (let i = 0; i < 320; i++) {
-      const a = (i / 320) * Math.PI * 2;
-      const r = 0.165;
-      const x = Math.cos(a) * r;
-      const y = Math.sin(a) * r;
-      const pulse = 0.85 + 0.15 * Math.sin(a * 3 + spin);
-      plotZPoint(
-        halfW + x * PW * 0.68,
-        halfH + y * PH * 0.68,
-        0.04,
-        1.6,
-        Math.min(255, (255 * pulse) | 0),
-        Math.min(255, (195 * pulse) | 0),
-        Math.min(255, (90 * pulse) | 0)
-      );
-    }
-
+    // Event Horizon Shadow (Pitch Black Core)
+    plotZDisc32(cx, cy, ehR, -12, packAbgr(0, 0, 0));
     procCtx.putImageData(procImgData, 0, 0);
-    procCtx.fillStyle = '#000000';
-    procCtx.beginPath();
-    procCtx.arc(halfW, halfH, PW * 0.105, 0, Math.PI * 2);
-    procCtx.fill();
   }
 
-  // 11. 3D Orbital Starship
+  // 5.11 Starship
   function renderProceduralRocket(t) {
     const w = PW, h = PH;
-    const s = w / 360;
     procCtx.fillStyle = '#000000';
     procCtx.fillRect(0, 0, w, h);
 
-    const sway = Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.16;
-    const hoverY = Math.sin((t / state.loopDuration) * Math.PI * 4) * 7 * s;
+    const cx = w * 0.5;
+    const hover = Math.sin((t / state.loopDuration) * Math.PI * 4) * 5;
+    const cy = h * 0.47 + hover;
 
     procCtx.save();
-    procCtx.translate(w * 0.5, h * 0.48 + hoverY);
-    procCtx.rotate(sway);
+    procCtx.translate(cx, cy);
+    procCtx.rotate(Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.08);
 
-    const flameLen = (48 + Math.sin(t * 28) * 14) * s;
-    const flameGrad = procCtx.createLinearGradient(0, 56 * s, 0, 56 * s + flameLen);
+    // Animated Thruster Flame
+    const flameLen = 34 + Math.sin(t * 38) * 9;
+    const flameGrad = procCtx.createLinearGradient(0, 34, 0, 34 + flameLen);
     flameGrad.addColorStop(0, '#ffffff');
-    flameGrad.addColorStop(0.3, '#38bdf8');
-    flameGrad.addColorStop(0.7, '#f97316');
+    flameGrad.addColorStop(0.35, '#38bdf8');
+    flameGrad.addColorStop(0.75, '#f97316');
     flameGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
     procCtx.fillStyle = flameGrad;
     procCtx.beginPath();
-    procCtx.moveTo(-16 * s, 56 * s);
-    procCtx.lineTo(0, 56 * s + flameLen);
-    procCtx.lineTo(16 * s, 56 * s);
+    procCtx.moveTo(-11, 34);
+    procCtx.lineTo(0, 34 + flameLen);
+    procCtx.lineTo(11, 34);
     procCtx.closePath();
     procCtx.fill();
 
-    procCtx.fillStyle = '#dc2626';
-    procCtx.beginPath();
-    procCtx.moveTo(-26 * s, 16 * s);
-    procCtx.lineTo(-56 * s, 58 * s);
-    procCtx.lineTo(-24 * s, 52 * s);
-    procCtx.closePath();
-    procCtx.fill();
-
-    procCtx.beginPath();
-    procCtx.moveTo(26 * s, 16 * s);
-    procCtx.lineTo(56 * s, 58 * s);
-    procCtx.lineTo(24 * s, 52 * s);
-    procCtx.closePath();
-    procCtx.fill();
-
-    const hullGrad = procCtx.createLinearGradient(-32 * s, 0, 32 * s, 0);
-    hullGrad.addColorStop(0, '#52525b');
-    hullGrad.addColorStop(0.35, '#f8fafc');
-    hullGrad.addColorStop(0.75, '#94a3b8');
-    hullGrad.addColorStop(1, '#27272a');
-    procCtx.fillStyle = hullGrad;
-    procCtx.beginPath();
-    procCtx.moveTo(0, -96 * s);
-    procCtx.quadraticCurveTo(34 * s, -36 * s, 28 * s, 56 * s);
-    procCtx.lineTo(-28 * s, 56 * s);
-    procCtx.quadraticCurveTo(-34 * s, -36 * s, 0, -96 * s);
-    procCtx.closePath();
-    procCtx.fill();
-
+    // Swept Delta Fins
     procCtx.fillStyle = '#ef4444';
     procCtx.beginPath();
-    procCtx.moveTo(0, -96 * s);
-    procCtx.quadraticCurveTo(15 * s, -68 * s, 17 * s, -54 * s);
-    procCtx.lineTo(-17 * s, -54 * s);
-    procCtx.quadraticCurveTo(-15 * s, -68 * s, 0, -96 * s);
+    procCtx.moveTo(-17, 12);
+    procCtx.lineTo(-36, 38);
+    procCtx.lineTo(-16, 34);
     procCtx.closePath();
     procCtx.fill();
 
-    drawShadedSphere(procCtx, 0, -14 * s, 14 * s, [56, 189, 248], { x: -0.4, y: -0.4 });
+    procCtx.beginPath();
+    procCtx.moveTo(17, 12);
+    procCtx.lineTo(36, 38);
+    procCtx.lineTo(16, 34);
+    procCtx.closePath();
+    procCtx.fill();
+
+    // Cylindrical Fuselage with 3D Shading
+    const bodyGrad = procCtx.createLinearGradient(-20, 0, 20, 0);
+    bodyGrad.addColorStop(0, '#64748b');
+    bodyGrad.addColorStop(0.35, '#f8fafc');
+    bodyGrad.addColorStop(0.75, '#cbd5e1');
+    bodyGrad.addColorStop(1, '#334155');
+    procCtx.fillStyle = bodyGrad;
+    procCtx.beginPath();
+    procCtx.moveTo(0, -56);
+    procCtx.quadraticCurveTo(21, -24, 18, 34);
+    procCtx.lineTo(-18, 34);
+    procCtx.quadraticCurveTo(-21, -24, 0, -56);
+    procCtx.closePath();
+    procCtx.fill();
+
+    // Red Nose Cone Tip
+    procCtx.fillStyle = '#dc2626';
+    procCtx.beginPath();
+    procCtx.moveTo(0, -56);
+    procCtx.quadraticCurveTo(10, -41, 12, -31);
+    procCtx.lineTo(-12, -31);
+    procCtx.quadraticCurveTo(-10, -41, 0, -56);
+    procCtx.closePath();
+    procCtx.fill();
+
+    // Cockpit Porthole
+    drawShadedSphere(procCtx, 0, -8, 8.5, [56, 189, 248], { x: -0.4, y: -0.4 });
     procCtx.restore();
   }
 
-  // 12. 4D Rotating Tesseract Hypercube
-  const TESS_VERTS = (() => {
+  // 5.12 4D Tesseract Hypercube
+  const TESSERACT_VERTS = (() => {
     const v = [];
     for (let i = 0; i < 16; i++) {
       v.push([
@@ -2286,7 +2239,7 @@
     return v;
   })();
 
-  const TESS_EDGES = (() => {
+  const TESSERACT_EDGES = (() => {
     const e = [];
     for (let i = 0; i < 16; i++) {
       for (let bit = 0; bit < 4; bit++) {
@@ -2299,81 +2252,349 @@
 
   function renderProceduralTesseract(t) {
     const w = PW, h = PH;
-    const s = w / 360;
     procCtx.fillStyle = '#000000';
     procCtx.fillRect(0, 0, w, h);
 
     const a = (t / state.loopDuration) * Math.PI * 2;
+    const b = a * 0.7;
     const cosA = Math.cos(a), sinA = Math.sin(a);
-    const cosB = Math.cos(a * 0.5), sinB = Math.sin(a * 0.5);
+    const cosB = Math.cos(b), sinB = Math.sin(b);
 
-    const proj = TESS_VERTS.map(([x, y, z, w4]) => {
-      const xw = x * cosA - w4 * sinA;
-      const ww = x * sinA + w4 * cosA;
-      const yz = y * cosB - z * sinB;
-      const zz = y * sinB + z * cosB;
+    const projected = TESSERACT_VERTS.map(([x, y, z, w4]) => {
+      // Rotate in XW plane
+      const x1 = x * cosA - w4 * sinA;
+      const w1 = x * sinA + w4 * cosA;
+      // Rotate in YW plane
+      const y1 = y * cosB - w1 * sinB;
+      const w2 = y * sinB + w1 * cosB;
+      // Rotate in XZ plane
+      const x2 = x1 * cosB - z * sinB;
+      const z2 = x1 * sinB + z * cosB;
 
-      const d4 = 2.6 / (3.4 - ww);
-      const x3 = xw * d4;
-      const y3 = yz * d4;
-      const z3 = zz * d4;
+      // 4D -> 3D stereographic projection
+      const d4 = 2.6 / (2.6 - w2);
+      const px3 = x2 * d4;
+      const py3 = y1 * d4;
+      const pz3 = z2 * d4;
 
-      const d3 = 2.2 / (3.0 - z3);
+      // 3D -> 2D perspective projection
+      const d3 = 3.2 / (3.2 + pz3);
       return {
-        sx: w * 0.5 + x3 * w * 0.25 * d3,
-        sy: h * 0.5 + y3 * h * 0.25 * d3,
-        depth: ww + z3
+        sx: w * 0.5 + px3 * w * 0.24 * d3,
+        sy: h * 0.5 + py3 * h * 0.24 * d3,
+        w2,
+        pz3
       };
     });
 
     procCtx.lineCap = 'round';
-    for (const [i, j] of TESS_EDGES) {
-      const p1 = proj[i], p2 = proj[j];
-      const bright = Math.max(0.35, Math.min(1.0, 0.65 + (p1.depth + p2.depth) * 0.14));
-      procCtx.strokeStyle = `rgba(${(140 * bright) | 0}, ${(255 * bright) | 0}, ${(190 * bright) | 0}, 0.92)`;
-      procCtx.lineWidth = Math.max(1.8, 3.2 * s * bright);
+    for (let i = 0; i < TESSERACT_EDGES.length; i++) {
+      const [i0, i1] = TESSERACT_EDGES[i];
+      const p0 = projected[i0];
+      const p1 = projected[i1];
+      const depth = Math.max(0.28, Math.min(1.0, 0.65 + ((p0.w2 + p1.w2) * 0.22)));
+      const lum = Math.round(115 + depth * 140);
+      procCtx.strokeStyle = `rgb(${lum},${lum},${lum})`;
+      procCtx.lineWidth = 1.6 + depth * 1.4;
       procCtx.beginPath();
-      procCtx.moveTo(p1.sx, p1.sy);
-      procCtx.lineTo(p2.sx, p2.sy);
+      procCtx.moveTo(p0.sx, p0.sy);
+      procCtx.lineTo(p1.sx, p1.sy);
       procCtx.stroke();
     }
 
-    for (const p of proj) {
-      drawShadedSphere(procCtx, p.sx, p.sy, 4.5 * s, [210, 255, 230], { x: -0.3, y: -0.3 });
+    for (let i = 0; i < projected.length; i++) {
+      const p = projected[i];
+      procCtx.fillStyle = '#ffffff';
+      procCtx.beginPath();
+      procCtx.arc(p.sx, p.sy, 2.6, 0, Math.PI * 2);
+      procCtx.fill();
     }
   }
 
   /* =========================================================================
-   * 6. HIGH-SPEED HTML5 CANVAS ASCII RENDERER
+   * 6. HIGH-SPEED HTML5 CANVAS ASCII RENDERER & GIF DECODER
    * ========================================================================= */
-  function getActiveCharset() {
-    if (state.charsetKey === 'custom') {
-      return state.customCharset.length > 0 ? state.customCharset : ' .:+*#@';
-    }
-    return CHARSETS[state.charsetKey] || CHARSETS.detailed;
-  }
-
-  function hexToRgb(hex) {
-    const clean = hex.replace('#', '');
-    const num = parseInt(clean.length === 3
-      ? clean.split('').map(c => c + c).join('')
-      : clean, 16);
-    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
-  }
-
-  function getHexLuminance(hex) {
-    const [r, g, b] = hexToRgb(hex);
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  }
-
   function getSourceDimensions() {
     if (state.sourceType === 'video' && sourceVideo.videoWidth > 0) {
       return { w: sourceVideo.videoWidth, h: sourceVideo.videoHeight };
+    }
+    if (state.sourceType === 'gif' && state.gifFrames.length > 0) {
+      const f0 = state.gifFrames[0].source;
+      return { w: f0.width, h: f0.height };
     }
     if (state.sourceType === 'image' && state.loadedImage) {
       return { w: state.loadedImage.naturalWidth, h: state.loadedImage.naturalHeight };
     }
     return { w: procCanvas.width, h: procCanvas.height };
+  }
+
+  function getCurrentGifFrame(t) {
+    const frames = state.gifFrames;
+    if (!frames || frames.length === 0) return null;
+    const dur = state.gifDuration || 1;
+    const target = ((t % dur) + dur) % dur;
+    let lo = 0;
+    let hi = frames.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (frames[mid].endTime <= target) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return frames[lo].source;
+  }
+
+  async function decodeAnimatedGif(arrayBuffer) {
+    // Fast native path via WebCodecs ImageDecoder when available
+    if ('ImageDecoder' in window) {
+      try {
+        const supported = await ImageDecoder.isTypeSupported('image/gif');
+        if (supported) {
+          const decoder = new ImageDecoder({ data: arrayBuffer, type: 'image/gif' });
+          await decoder.tracks.ready;
+          const track = decoder.tracks.selectedTrack;
+          const count = track ? track.frameCount : 1;
+          const frames = [];
+          let cumTime = 0;
+
+          for (let i = 0; i < count; i++) {
+            const res = await decoder.decode({ frameIndex: i });
+            const vf = res.image;
+            const delaySec = Math.max(0.02, (vf.duration || 100000) / 1_000_000);
+            cumTime += delaySec;
+
+            const fc = document.createElement('canvas');
+            fc.width = vf.displayWidth || vf.codedWidth;
+            fc.height = vf.displayHeight || vf.codedHeight;
+            fc.getContext('2d').drawImage(vf, 0, 0);
+            vf.close();
+
+            frames.push({ source: fc, delay: delaySec, endTime: cumTime });
+          }
+          decoder.close();
+          if (frames.length > 0) return { frames, duration: cumTime };
+        }
+      } catch (err) {
+        // Fall through to pure-JS GIF87a/GIF89a decoder
+      }
+    }
+
+    // Pure-JS GIF87a / GIF89a + LZW fallback for all browsers
+    const bytes = new Uint8Array(arrayBuffer);
+    let pos = 6; // Skip 'GIF87a' / 'GIF89a'
+    const readU16 = () => {
+      const v = bytes[pos] | (bytes[pos + 1] << 8);
+      pos += 2;
+      return v;
+    };
+
+    const screenW = readU16();
+    const screenH = readU16();
+    const packed = bytes[pos++];
+    pos += 2; // bgColorIndex, pixelAspectRatio
+
+    let gct = null;
+    if (packed & 0x80) {
+      const gctSize = 1 << ((packed & 0x07) + 1);
+      gct = bytes.subarray(pos, pos + gctSize * 3);
+      pos += gctSize * 3;
+    }
+
+    const compCanvas = document.createElement('canvas');
+    compCanvas.width = screenW;
+    compCanvas.height = screenH;
+    const compCtx = compCanvas.getContext('2d', { willReadFrequently: true });
+
+    const patchCanvas = document.createElement('canvas');
+    const patchCtx = patchCanvas.getContext('2d');
+
+    const frames = [];
+    let cumTime = 0;
+    let disposal = 0;
+    let delayCs = 10;
+    let hasTrans = false;
+    let transIdx = -1;
+
+    while (pos < bytes.length) {
+      const blockId = bytes[pos++];
+      if (blockId === 0x3B) break; // GIF Trailer
+
+      if (blockId === 0x21) {
+        const extLabel = bytes[pos++];
+        if (extLabel === 0xF9) {
+          pos++; // Block size (4)
+          const gcePacked = bytes[pos++];
+          disposal = (gcePacked >> 2) & 0x07;
+          hasTrans = (gcePacked & 0x01) !== 0;
+          delayCs = readU16();
+          transIdx = bytes[pos++];
+          pos++; // Block terminator (0)
+        } else {
+          let subLen;
+          while ((subLen = bytes[pos++]) > 0) pos += subLen;
+        }
+      } else if (blockId === 0x2C) {
+        const left = readU16();
+        const top = readU16();
+        const width = readU16();
+        const height = readU16();
+        const imgPacked = bytes[pos++];
+
+        let ct = gct;
+        if (imgPacked & 0x80) {
+          const lctSize = 1 << ((imgPacked & 0x07) + 1);
+          ct = bytes.subarray(pos, pos + lctSize * 3);
+          pos += lctSize * 3;
+        }
+        const interlaced = (imgPacked & 0x40) !== 0;
+        const minCodeSize = bytes[pos++];
+
+        // Gather LZW sub-blocks
+        const subChunks = [];
+        let totalSubBytes = 0;
+        let subLen;
+        while ((subLen = bytes[pos++]) > 0) {
+          subChunks.push(bytes.subarray(pos, pos + subLen));
+          totalSubBytes += subLen;
+          pos += subLen;
+        }
+        const lzwData = new Uint8Array(totalSubBytes);
+        let writeOff = 0;
+        for (let c = 0; c < subChunks.length; c++) {
+          lzwData.set(subChunks[c], writeOff);
+          writeOff += subChunks[c].length;
+        }
+
+        // LZW Decompression
+        const pixelCount = width * height;
+        const indexStream = new Uint8Array(pixelCount);
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+        let codeSize = minCodeSize + 1;
+        let nextCode = eoiCode + 1;
+        const prefix = new Int32Array(4096);
+        const suffix = new Uint8Array(4096);
+        const stack = new Uint8Array(4096);
+
+        let bitPos = 0;
+        const totalBits = lzwData.length * 8;
+        let prevCode = -1;
+        let outIdx = 0;
+
+        while (bitPos + codeSize <= totalBits && outIdx < pixelCount) {
+          let code = 0;
+          for (let b = 0; b < codeSize; b++) {
+            const bp = bitPos + b;
+            if (lzwData[bp >> 3] & (1 << (bp & 7))) code |= 1 << b;
+          }
+          bitPos += codeSize;
+
+          if (code === clearCode) {
+            codeSize = minCodeSize + 1;
+            nextCode = eoiCode + 1;
+            prevCode = -1;
+            continue;
+          }
+          if (code === eoiCode) break;
+
+          let inCode = code;
+          let stackPtr = 0;
+          if (code >= nextCode) {
+            if (prevCode === -1) break;
+            let k = prevCode;
+            while (k >= clearCode) k = prefix[k];
+            stack[stackPtr++] = k;
+            inCode = prevCode;
+          }
+
+          while (inCode >= clearCode) {
+            stack[stackPtr++] = suffix[inCode];
+            inCode = prefix[inCode];
+          }
+          const firstChar = inCode;
+          stack[stackPtr++] = firstChar;
+
+          while (stackPtr > 0 && outIdx < pixelCount) {
+            indexStream[outIdx++] = stack[--stackPtr];
+          }
+
+          if (prevCode !== -1 && nextCode < 4096) {
+            prefix[nextCode] = prevCode;
+            suffix[nextCode] = firstChar;
+            nextCode++;
+            if (nextCode >= (1 << codeSize) && codeSize < 12) {
+              codeSize++;
+            }
+          }
+          prevCode = code;
+        }
+
+        // De-interlace if needed
+        let orderedStream = indexStream;
+        if (interlaced) {
+          orderedStream = new Uint8Array(pixelCount);
+          const passes = [
+            { start: 0, step: 8 },
+            { start: 4, step: 8 },
+            { start: 2, step: 4 },
+            { start: 1, step: 2 }
+          ];
+          let srcRow = 0;
+          for (let p = 0; p < passes.length; p++) {
+            for (let y = passes[p].start; y < height; y += passes[p].step) {
+              orderedStream.set(indexStream.subarray(srcRow * width, (srcRow + 1) * width), y * width);
+              srcRow++;
+            }
+          }
+        }
+
+        const prevSnap = disposal === 3 ? compCtx.getImageData(0, 0, screenW, screenH) : null;
+
+        patchCanvas.width = width;
+        patchCanvas.height = height;
+        const patchImg = patchCtx.createImageData(width, height);
+        const pData = patchImg.data;
+        for (let i = 0; i < pixelCount; i++) {
+          const ci = orderedStream[i];
+          const o = i * 4;
+          if (hasTrans && ci === transIdx) {
+            pData[o + 3] = 0;
+          } else if (ct) {
+            const co = ci * 3;
+            pData[o] = ct[co];
+            pData[o + 1] = ct[co + 1];
+            pData[o + 2] = ct[co + 2];
+            pData[o + 3] = 255;
+          }
+        }
+        patchCtx.putImageData(patchImg, 0, 0);
+        compCtx.drawImage(patchCanvas, left, top);
+
+        const frameCanvas = document.createElement('canvas');
+        frameCanvas.width = screenW;
+        frameCanvas.height = screenH;
+        frameCanvas.getContext('2d').drawImage(compCanvas, 0, 0);
+
+        const delaySec = Math.max(0.02, (delayCs || 10) / 100);
+        cumTime += delaySec;
+        frames.push({ source: frameCanvas, delay: delaySec, endTime: cumTime });
+
+        if (disposal === 2) {
+          compCtx.clearRect(left, top, width, height);
+        } else if (disposal === 3 && prevSnap) {
+          compCtx.putImageData(prevSnap, 0, 0);
+        }
+
+        disposal = 0;
+        delayCs = 10;
+        hasTrans = false;
+        transIdx = -1;
+      }
+    }
+
+    return { frames, duration: cumTime };
   }
 
   function drawCurrentSourceToSample(cols, rows) {
@@ -2385,6 +2606,9 @@
 
     if (state.sourceType === 'video' && sourceVideo.readyState >= 2) {
       sampleCtx.drawImage(sourceVideo, 0, 0, cols, rows);
+    } else if (state.sourceType === 'gif' && state.gifFrames.length > 0) {
+      const frameSrc = getCurrentGifFrame(state.gifTime);
+      if (frameSrc) sampleCtx.drawImage(frameSrc, 0, 0, cols, rows);
     } else if (state.sourceType === 'image' && state.loadedImage) {
       sampleCtx.drawImage(state.loadedImage, 0, 0, cols, rows);
     } else {
@@ -2555,7 +2779,9 @@
     ctx.save();
     ctx.font = `400 ${fontSize}px "JetBrains Mono", "Fira Code", monospace`;
 
-    const elapsed = state.sourceType === 'video' ? sourceVideo.currentTime : state.simTime;
+    const elapsed = state.sourceType === 'video'
+      ? sourceVideo.currentTime
+      : (state.sourceType === 'gif' ? state.gifTime : state.simTime);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#f87171';
@@ -2611,6 +2837,11 @@
       timelineScrubber.disabled = false;
       timelineScrubber.value = Math.round((cur / dur) * 1000);
       timeReadout.textContent = `${cur.toFixed(2).padStart(5, '0')}s / ${dur.toFixed(2).padStart(5, '0')}s`;
+    } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
+      const cur = state.gifTime % state.gifDuration;
+      timelineScrubber.disabled = false;
+      timelineScrubber.value = Math.round((cur / state.gifDuration) * 1000);
+      timeReadout.textContent = `${cur.toFixed(2).padStart(5, '0')}s / ${state.gifDuration.toFixed(2).padStart(5, '0')}s`;
     } else if (state.sourceType === 'procedural') {
       const cur = state.simTime % state.loopDuration;
       timelineScrubber.disabled = false;
@@ -2642,10 +2873,12 @@
 
       const shouldAnimate =
         state.isPlaying &&
-        (state.sourceType === 'procedural' || state.sourceType === 'video' || state.particles);
+        (state.sourceType === 'procedural' || state.sourceType === 'video' || state.sourceType === 'gif' || state.particles);
 
       if (shouldAnimate || state.dirty) {
-        if (state.isPlaying && state.sourceType !== 'video') {
+        if (state.isPlaying && state.sourceType === 'gif' && state.gifDuration > 0) {
+          state.gifTime = (state.gifTime + dt) % state.gifDuration;
+        } else if (state.isPlaying && state.sourceType !== 'video') {
           state.simTime = (state.simTime + dt) % state.loopDuration;
         }
         renderAsciiFrame(asciiCtx, asciiCanvas.width, asciiCanvas.height, dt, false);
@@ -2658,7 +2891,7 @@
   }
 
   /* =========================================================================
-   * 8. MEDIA LOADING (IMAGES, VIDEOS, PREMADE 3D OBJECTS)
+   * 8. MEDIA LOADING (IMAGES, VIDEOS, GIFS, PREMADE 3D OBJECTS)
    * ========================================================================= */
   function setPlayState(playing) {
     state.isPlaying = playing;
@@ -2685,6 +2918,8 @@
   function loadProceduralSample(id) {
     const meta = PREMADE_META[id] || PREMADE_META.snowman;
     sourceVideo.pause();
+    state.gifFrames = [];
+    state.gifDuration = 0;
     state.sourceType = 'procedural';
     state.proceduralId = id;
     state.simTime = 0;
@@ -2696,17 +2931,53 @@
     setPlayState(true);
   }
 
-  function handleUploadedFile(file) {
+  async function handleUploadedFile(file) {
     if (!file) return;
     if (state.currentMediaUrl) {
       URL.revokeObjectURL(state.currentMediaUrl);
       state.currentMediaUrl = null;
     }
-    const url = URL.createObjectURL(file);
-    state.currentMediaUrl = url;
+    state.gifFrames = [];
+    state.gifDuration = 0;
+    state.gifTime = 0;
+
     state.sourceName = file.name;
     sourceBadge.textContent = file.name;
     setActivePremadeButton(null);
+
+    const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+
+    if (isGif) {
+      sourceVideo.pause();
+      showToast('Decoding animated GIF...', 35);
+      try {
+        const buffer = await file.arrayBuffer();
+        const decoded = await decodeAnimatedGif(buffer);
+        if (decoded.frames.length > 1) {
+          state.gifFrames = decoded.frames;
+          state.gifDuration = decoded.duration;
+          state.gifTime = 0;
+          state.sourceType = 'gif';
+          triggerBuildAnimation();
+          setPlayState(true);
+          hideToast();
+          return;
+        } else if (decoded.frames.length === 1) {
+          state.loadedImage = decoded.frames[0].source;
+          state.sourceType = 'image';
+          triggerBuildAnimation();
+          setPlayState(true);
+          hideToast();
+          return;
+        }
+      } catch (err) {
+        // Fallback to static image below if malformed GIF
+      }
+      hideToast();
+    }
+
+    const url = URL.createObjectURL(file);
+    state.currentMediaUrl = url;
 
     if (file.type.startsWith('video/')) {
       state.sourceType = 'video';
@@ -2919,6 +3190,8 @@
     const ratio = Number(e.target.value) / 1000;
     if (state.sourceType === 'video' && sourceVideo.duration) {
       sourceVideo.currentTime = ratio * sourceVideo.duration;
+    } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
+      state.gifTime = ratio * state.gifDuration;
     } else if (state.sourceType === 'procedural') {
       state.simTime = ratio * state.loopDuration;
     }
@@ -3042,7 +3315,9 @@
 
     const duration = state.sourceType === 'video' && sourceVideo.duration
       ? sourceVideo.duration
-      : (state.sourceType === 'image' ? 4.0 : state.loopDuration);
+      : (state.sourceType === 'gif' && state.gifDuration > 0
+          ? state.gifDuration
+          : (state.sourceType === 'image' ? 4.0 : state.loopDuration));
 
     if (state.buildAnimEnabled) state.buildProgress = 0;
     showToast(`Recording ${state.videoAspect} .${chosen.ext.toUpperCase()}...`, 0);
@@ -3077,7 +3352,11 @@
       const totalFrames = Math.round(duration * targetFps);
       for (let f = 0; f < totalFrames; f++) {
         const elapsed = f / targetFps;
-        state.simTime = elapsed % state.loopDuration;
+        if (state.sourceType === 'gif' && state.gifDuration > 0) {
+          state.gifTime = elapsed % state.gifDuration;
+        } else {
+          state.simTime = elapsed % state.loopDuration;
+        }
         if (state.buildAnimEnabled) {
           state.buildProgress = Math.min(1.0, elapsed / state.buildDuration);
         }
@@ -3277,7 +3556,9 @@
 
     const duration = state.sourceType === 'video' && sourceVideo.duration
       ? Math.min(8.0, sourceVideo.duration)
-      : (state.sourceType === 'image' ? 3.0 : Math.min(6.0, state.loopDuration));
+      : (state.sourceType === 'gif' && state.gifDuration > 0
+          ? Math.min(8.0, state.gifDuration)
+          : (state.sourceType === 'image' ? 3.0 : Math.min(6.0, state.loopDuration)));
 
     const totalFrames = Math.max(12, Math.round(duration * gifFps));
     const capturedFrames = [];
@@ -3295,6 +3576,8 @@
           sourceVideo.addEventListener('seeked', onSeeked);
           setTimeout(r, 80);
         });
+      } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
+        state.gifTime = t % state.gifDuration;
       } else {
         state.simTime = t;
       }
@@ -3340,11 +3623,13 @@
       ? 1
       : (state.sourceType === 'video' && sourceVideo.duration
           ? Math.min(120, Math.max(24, Math.round(sourceVideo.duration * 16)))
-          : 96);
+          : (state.sourceType === 'gif' && state.gifDuration > 0
+              ? Math.min(120, Math.max(state.gifFrames.length, Math.round(state.gifDuration * 16)))
+              : 96));
 
     const duration = state.sourceType === 'video' && sourceVideo.duration
       ? sourceVideo.duration
-      : state.loopDuration;
+      : (state.sourceType === 'gif' && state.gifDuration > 0 ? state.gifDuration : state.loopDuration);
 
     const encodedFrames = [];
     for (let f = 0; f < frameCount; f++) {
@@ -3356,6 +3641,8 @@
           sourceVideo.addEventListener('seeked', onSeeked);
           setTimeout(r, 60);
         });
+      } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
+        state.gifTime = t % state.gifDuration;
       } else {
         state.simTime = t;
       }
