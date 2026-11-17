@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>ASCII Studio</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' fill='%23070709' stroke='%2310b981' stroke-width='3.5'/%3E%3Cg font-family='monospace' font-weight='900' font-size='6.4' text-anchor='middle' fill='%2310b981'%3E%3Ctext x='14.5' y='18'%3E%40%3C/text%3E%3Ctext x='19' y='18'%3E%23%3C/text%3E%3Ctext x='23.5' y='18'%3E%40%3C/text%3E%3Ctext x='10' y='23'%3E%23%3C/text%3E%3Ctext x='28' y='23'%3E%23%3C/text%3E%3Ctext x='10' y='28'%3E%40%3C/text%3E%3Ctext x='28' y='28'%3E%40%3C/text%3E%3Ctext x='10' y='33'%3E%23%3C/text%3E%3Ctext x='14.5' y='33'%3E%40%3C/text%3E%3Ctext x='19' y='33'%3E%23%3C/text%3E%3Ctext x='23.5' y='33'%3E%40%3C/text%3E%3Ctext x='28' y='33'%3E%23%3C/text%3E%3Ctext x='10' y='38'%3E%40%3C/text%3E%3Ctext x='28' y='38'%3E%40%3C/text%3E%3Ctext x='10' y='43'%3E%23%3C/text%3E%3Ctext x='28' y='43'%3E%23%3C/text%3E%3Ctext x='10' y='48'%3E%40%3C/text%3E%3Ctext x='28' y='48'%3E%40%3C/text%3E%3Ctext x='40.5' y='18'%3E%23%3C/text%3E%3Ctext x='45' y='18'%3E%40%3C/text%3E%3Ctext x='49.5' y='18'%3E%23%3C/text%3E%3Ctext x='54' y='18'%3E%40%3C/text%3E%3Ctext x='36' y='23'%3E%40%3C/text%3E%3Ctext x='36' y='28'%3E%23%3C/text%3E%3Ctext x='40.5' y='33'%3E%40%3C/text%3E%3Ctext x='45' y='33'%3E%23%3C/text%3E%3Ctext x='49.5' y='33'%3E%40%3C/text%3E%3Ctext x='54' y='38'%3E%23%3C/text%3E%3Ctext x='54' y='43'%3E%40%3C/text%3E%3Ctext x='36' y='48'%3E%23%3C/text%3E%3Ctext x='40.5' y='48'%3E%40%3C/text%3E%3Ctext x='45' y='48'%3E%23%3C/text%3E%3Ctext x='49.5' y='48'%3E%40%3C/text%3E%3C/g%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -43,15 +43,21 @@
       font-family: var(--mono);
       font-size: 12px;
       overflow: hidden;
+      overscroll-behavior: none;
       -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
     }
 
     /* Main Terminal Box Application Shell */
     .app-shell {
       display: flex;
       width: 100vw;
+      max-width: 100%;
       height: 100vh;
       height: 100dvh;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
       overflow: hidden;
       position: relative;
       border: 1px solid var(--border-strong);
@@ -84,12 +90,13 @@
       inset: 0;
       background: rgba(0, 0, 0, 0.72);
       z-index: 25;
+      backdrop-filter: blur(2px);
     }
 
     /* Tablet & Mobile Landscape: Keep sidebar side-by-side so preview never gets covered */
-    @media (max-width: 960px) and (min-width: 540px) {
+    @media (max-width: 960px) and (min-width: 681px) {
       :root {
-        --sidebar-w: clamp(248px, 38vw, 320px);
+        --sidebar-w: clamp(256px, 38vw, 324px);
       }
       .sidebar {
         width: var(--sidebar-w);
@@ -100,17 +107,21 @@
       }
     }
 
-    /* Narrow Mobile Portrait: Slide-over drawer with tap-outside backdrop */
-    @media (max-width: 539px) {
+    /* Narrow Mobile Portrait & Small Phones: Slide-over drawer with tap-outside backdrop */
+    @media (max-width: 680px) {
+      .app-shell {
+        border: none;
+      }
       .sidebar {
         position: fixed;
         top: 0;
         left: 0;
         bottom: 0;
-        width: min(86vw, 336px);
-        min-width: min(86vw, 336px);
+        width: min(90vw, 360px);
+        min-width: min(90vw, 360px);
+        padding-top: env(safe-area-inset-top, 0px);
         transform: translateX(0);
-        box-shadow: 16px 0 40px rgba(0, 0, 0, 0.92);
+        box-shadow: 16px 0 40px rgba(0, 0, 0, 0.94);
       }
       .sidebar.collapsed {
         margin-left: 0;
@@ -118,6 +129,20 @@
       }
       .sidebar:not(.collapsed) + .sidebar-backdrop {
         display: block;
+      }
+      .mobile-close-label {
+        display: inline !important;
+      }
+      #collapseSidebarBtn {
+        width: auto;
+        padding: 0 10px;
+        gap: 5px;
+        height: 34px;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent);
+        border-color: var(--accent);
       }
     }
 
@@ -166,6 +191,7 @@
       cursor: pointer;
       transition: all 0.12s ease;
       flex-shrink: 0;
+      touch-action: manipulation;
     }
 
     .icon-btn:hover {
@@ -177,7 +203,10 @@
     .sidebar-scroll {
       flex: 1;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
       padding: 12px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -247,6 +276,35 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+    }
+
+    .guide-step-tag {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      padding: 1px 6px;
+      letter-spacing: 0.06em;
+    }
+
+    .sub-group-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sub-group-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
     }
 
     /* Upload Dropzone */
@@ -658,6 +716,7 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
+      flex: 1;
     }
 
     .badge {
@@ -671,6 +730,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      min-width: 0;
+      max-width: 100%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -786,8 +847,8 @@
 
     /* Boxed Bottom Transport Bar */
     .transport-bar {
-      height: 48px;
-      padding: 0 12px;
+      height: calc(48px + env(safe-area-inset-bottom, 0px));
+      padding: 0 12px env(safe-area-inset-bottom, 0px) 12px;
       border-top: 1px solid var(--border-strong);
       background: var(--bg-card);
       display: flex;
@@ -803,6 +864,7 @@
       height: 6px;
       background: var(--bg-app);
       border: 1px solid var(--border-strong);
+      touch-action: none;
     }
 
     .scrubber::-webkit-slider-thumb {
@@ -834,23 +896,126 @@
 
     @media (max-height: 460px) {
       .sidebar-header,
-      .stage-topbar,
-      .transport-bar {
+      .stage-topbar {
         height: 40px;
+      }
+      .transport-bar {
+        height: calc(40px + env(safe-area-inset-bottom, 0px));
       }
       .canvas-viewport {
         margin: 6px;
       }
     }
 
-    @media (max-width: 539px) {
+    /* Mobile Touch Targets, iOS Anti-Zoom Inputs & Responsive Layout */
+    @media (max-width: 680px) {
+      .stage-topbar {
+        height: 46px;
+        padding: 0 8px;
+      }
+      .expand-controls-btn {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
       .canvas-viewport {
         margin: 6px;
       }
+      .transport-bar {
+        height: calc(50px + env(safe-area-inset-bottom, 0px));
+        padding: 0 8px env(safe-area-inset-bottom, 0px) 8px;
+        gap: 8px;
+      }
+      #playPauseBtn {
+        width: 36px;
+        height: 36px;
+      }
+      .scrubber {
+        height: 8px;
+      }
+      .scrubber::-webkit-slider-thumb {
+        width: 18px;
+        height: 22px;
+      }
       .time-readout {
-        min-width: 104px;
+        min-width: auto;
+        font-size: 10px;
+        padding: 5px 6px;
+        white-space: nowrap;
+      }
+      .btn {
+        min-height: 38px;
+        padding: 9px 10px;
+      }
+      .seg-btn {
+        min-height: 34px;
+        padding: 7px 3px;
         font-size: 10.5px;
-        padding: 4px 6px;
+      }
+      .toggle-row {
+        min-height: 34px;
+      }
+      .swatch {
+        width: 28px;
+        height: 28px;
+      }
+      input[type="color"] {
+        width: 34px;
+        height: 28px;
+      }
+      input[type="range"] {
+        height: 8px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        width: 18px;
+        height: 20px;
+      }
+      /* Prevent iOS Safari auto-zoom on input focus */
+      select,
+      input[type="text"],
+      input[type="number"],
+      .code-modal-textarea {
+        font-size: 16px;
+      }
+      .mini-field select {
+        font-size: 13px;
+        padding: 7px 18px 7px 5px;
+      }
+      .code-modal-backdrop {
+        padding: 8px;
+      }
+      .code-modal-box {
+        width: 100%;
+        max-height: 88dvh;
+        padding: 12px;
+      }
+      .code-modal-textarea {
+        height: min(40dvh, 210px);
+      }
+      .code-modal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .code-modal-actions .btn {
+        width: 100%;
+      }
+      .toast {
+        left: 10px;
+        right: 10px;
+        bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+        min-width: 0;
+        width: auto;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .gif-options {
+        grid-template-columns: 1fr;
+      }
+      .time-readout {
+        font-size: 9.5px;
+        padding: 4px 5px;
       }
     }
 
@@ -884,8 +1049,8 @@
 
     .floating-exit-clean {
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: calc(12px + env(safe-area-inset-top, 0px));
+      right: calc(12px + env(safe-area-inset-right, 0px));
       z-index: 10000;
       background: var(--bg-card);
       border: 1px solid var(--accent);
@@ -895,7 +1060,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 7px 12px;
+      padding: 8px 12px;
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
@@ -908,7 +1073,8 @@
     }
 
     .stage-wrapper.clean-ui:hover .floating-exit-clean,
-    .stage-wrapper.pseudo-fullscreen:hover .floating-exit-clean {
+    .stage-wrapper.pseudo-fullscreen:hover .floating-exit-clean,
+    .stage-wrapper.clean-ui:active .floating-exit-clean {
       opacity: 1;
       pointer-events: auto;
     }
@@ -1078,32 +1244,28 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
+        <span class="mobile-close-label" style="display:none;">DONE</span>
       </button>
     </div>
 
     <div class="sidebar-scroll">
-      <!-- 01. Upload Media -->
+      <!-- STEP 01. Source & 3D Scene -->
       <div class="section">
         <div class="section-title">
-          <span>┌─ 01 // UPLOAD MEDIA</span>
+          <span>┌─ 01 // SOURCE &amp; 3D SCENE</span>
+          <span class="guide-step-tag">INPUT</span>
         </div>
+
         <div class="dropzone" id="dropzone">
           <div class="dropzone-title">[ + SELECT OR DROP MEDIA ]</div>
           <div class="dropzone-sub">MP4 • MOV • M4V • WEBM • 3GP • MKV • GIF • IMAGE</div>
           <input type="file" id="fileInput" class="hidden-input" accept="video/mp4,video/quicktime,video/x-m4v,video/webm,video/3gpp,video/x-matroska,video/*,image/*,.mov,.mp4,.m4v,.webm,.3gp,.mkv,.gif,.png,.jpg,.jpeg,.webp" />
         </div>
-      </div>
-
-      <!-- 02. Premade 3D Objects -->
-      <div class="section">
-        <div class="section-title">
-          <span>┌─ 02 // PREMADE 3D OBJECTS</span>
-          <span style="font-size: 9.5px; color: var(--accent);">[12]</span>
-        </div>
 
         <div class="control-group">
           <div class="control-header">
-            <span>Select 3D Model</span>
+            <span>Premade 3D Model</span>
+            <span style="font-size: 9.5px; color: var(--accent);">[12 SCENES]</span>
           </div>
           <select id="premadeSelect" title="Choose a Premade 3D Object">
             <option value="snowman" selected>01. Snowman (3D Shaded)</option>
@@ -1121,8 +1283,14 @@
             <option value="uploaded" disabled hidden>-- Custom Uploaded Media --</option>
           </select>
         </div>
+      </div>
 
-        <div class="build-divider"></div>
+      <!-- STEP 02. Ground-Up Build Animation -->
+      <div class="section">
+        <div class="section-title">
+          <span>┌─ 02 // BUILD ANIMATION</span>
+          <span class="guide-step-tag">INTRO FX</span>
+        </div>
 
         <label class="toggle-row">
           <span class="toggle-label">Ground-Up Build Animation</span>
@@ -1141,55 +1309,44 @@
             <option value="1.1">1.1s FAST</option>
           </select>
         </div>
-      </div>
 
-      <!-- 03. Live Scrolling Code -->
-      <div class="section">
-        <div class="section-title">
-          <span>┌─ 03 // LIVE SCROLLING CODE</span>
-          <span id="codePaneFileTag" style="font-size: 9.5px; color: var(--accent); max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">snowman_3d.py</span>
-        </div>
-
-        <label class="toggle-row">
-          <span class="toggle-label">Show Code Pane (C)</span>
-          <input type="checkbox" id="codePaneToggle" class="hidden-input" />
-          <span class="switch"></span>
-        </label>
-
-        <label class="toggle-row">
-          <span class="toggle-label">Auto-Scroll Execution</span>
-          <input type="checkbox" id="codeAutoScrollToggle" class="hidden-input" checked />
-          <span class="switch"></span>
-        </label>
-
-        <div class="control-group" id="codeSpeedControls">
+        <div class="control-group" id="buildColorGroup">
           <div class="control-header">
-            <span>Code Scroll Mode</span>
-            <span class="control-val" id="codeSpeedVal">0.55x</span>
+            <span>Build Frontier Color</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="control-val" id="buildColorHexLabel">#10B981</span>
+              <input type="color" id="buildColorPicker" value="#10b981" title="Custom Build Effect Color" />
+            </div>
           </div>
-          <div class="segmented" id="codeScrollModeGroup">
-            <button class="seg-btn active" data-cmode="slow">SLOW</button>
-            <button class="seg-btn" data-cmode="norm">NORM</button>
-            <button class="seg-btn" data-cmode="fast">FAST</button>
+          <div class="tint-swatches">
+            <div class="swatch" style="background:#10b981" data-bswatch="#10b981" title="Emerald Scan"></div>
+            <div class="swatch" style="background:#00f0ff" data-bswatch="#00f0ff" title="Cyber Cyan"></div>
+            <div class="swatch" style="background:#ffb000" data-bswatch="#ffb000" title="Solar Amber"></div>
+            <div class="swatch" style="background:#ff2a85" data-bswatch="#ff2a85" title="Neon Pink"></div>
+            <div class="swatch" style="background:#ffffff" data-bswatch="#ffffff" title="Pure White"></div>
           </div>
-          <input type="range" id="codeSpeedSlider" min="0.25" max="2.50" step="0.05" value="0.55" title="Adjust Code Scroll Speed" />
         </div>
 
-        <div class="code-btn-row">
-          <button class="btn btn-compact" id="copyCodeBtn" title="Copy Code to Clipboard">
-            <span>[ COPY CODE ]</span>
-          </button>
-          <button class="btn btn-compact" id="openPasteModalBtn" title="Paste or Edit Source Code">
-            <span>[ PASTE / EDIT ]</span>
-          </button>
+        <div class="control-group" id="buildMixGroup">
+          <div class="control-header">
+            <span>White + Color Mixing</span>
+          </div>
+          <div class="segmented" id="buildMixModeGroup">
+            <button class="seg-btn active" data-bmix="combine" title="Mix White + Build Color + Generated Object Colors">COMBINE</button>
+            <button class="seg-btn" data-bmix="build_white" title="Mix White with Chosen Build Color">WHITE+FX</button>
+            <button class="seg-btn" data-bmix="gen_white" title="Mix White with Generated Object Colors">WHITE+GEN</button>
+          </div>
         </div>
       </div>
 
-      <!-- 04. Color & Aesthetic -->
+      <!-- STEP 03. Color, Particles & Overlay -->
       <div class="section">
         <div class="section-title">
-          <span>┌─ 04 // COLOR &amp; AESTHETIC</span>
+          <span>┌─ 03 // COLOR &amp; OVERLAY</span>
+          <span class="guide-step-tag">STYLE</span>
         </div>
+
+        <div class="sub-group-label">COLOR PALETTE</div>
         <div class="segmented" id="colorModeGroup">
           <button class="seg-btn active" data-mode="mono">MONO</button>
           <button class="seg-btn" data-mode="rgb">FULL RGB</button>
@@ -1199,9 +1356,9 @@
         <div class="control-group" id="vibrancyGroup" style="display: none;">
           <div class="control-header">
             <span>RGB Vibrancy</span>
-            <span class="control-val" id="vibrancyVal">130%</span>
+            <span class="control-val" id="vibrancyVal">100%</span>
           </div>
-          <input type="range" id="vibrancySlider" min="50" max="220" value="130" />
+          <input type="range" id="vibrancySlider" min="50" max="220" value="100" />
         </div>
 
         <div class="control-group" id="tintGroup" style="display: none;">
@@ -1228,11 +1385,37 @@
           </div>
         </div>
 
+        <div class="sub-group-label">VIDEO &amp; CODE PARTICLES</div>
         <label class="toggle-row">
-          <span class="toggle-label">Ambient Snow / Star Particles</span>
+          <span class="toggle-label">Integrated ASCII Particles</span>
           <input type="checkbox" id="particlesToggle" class="hidden-input" checked />
           <span class="switch"></span>
         </label>
+
+        <div class="control-group" id="particleColorGroup">
+          <div class="control-header">
+            <span>Particle Color</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="control-val" id="particleHexLabel">#C8D2E1</span>
+              <input type="color" id="particleColorPicker" value="#c8d2e1" title="Custom Particle Color" />
+            </div>
+          </div>
+          <div class="tint-swatches">
+            <div class="swatch" style="background:#c8d2e1" data-pswatch="#c8d2e1" title="Frost White"></div>
+            <div class="swatch" style="background:#00ff41" data-pswatch="#00ff41" title="Matrix Green"></div>
+            <div class="swatch" style="background:#ffb000" data-pswatch="#ffb000" title="Amber Gold"></div>
+            <div class="swatch" style="background:#00f0ff" data-pswatch="#00f0ff" title="Cyber Cyan"></div>
+            <div class="swatch" style="background:#ff2a85" data-pswatch="#ff2a85" title="Neon Pink"></div>
+          </div>
+        </div>
+
+        <div class="sub-group-label">HUD &amp; ATTRIBUTION</div>
+        <div class="control-group">
+          <div class="control-header">
+            <span>From / Studio Tag</span>
+          </div>
+          <input type="text" id="attributionInput" value="@ascii.studio - 2026" maxlength="42" placeholder="@ascii.studio - 2026" title="Customize who the render is from" />
+        </div>
 
         <label class="toggle-row">
           <span class="toggle-label">Terminal HUD Telemetry</span>
@@ -1247,34 +1430,49 @@
         </label>
       </div>
 
-      <!-- 05. Grid & 3D Shading -->
+      <!-- STEP 04. Scale & ASCII Grid -->
       <div class="section">
         <div class="section-title">
-          <span>┌─ 05 // GRID &amp; 3D SHADING</span>
+          <span>┌─ 04 // SCALE &amp; ASCII GRID</span>
+          <span class="guide-step-tag">LAYOUT</span>
         </div>
 
+        <div class="sub-group-label">SIZE &amp; ASPECT</div>
+        <div class="control-group">
+          <div class="control-header">
+            <span>Whole Scale</span>
+            <span class="control-val" id="scaleVal">100%</span>
+          </div>
+          <input type="range" id="scaleSlider" min="25" max="250" value="100" />
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>Scale X (Width)</span>
+            <span class="control-val" id="scaleXVal">100%</span>
+          </div>
+          <input type="range" id="scaleXSlider" min="25" max="250" value="100" />
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>Scale Y (Height)</span>
+            <span class="control-val" id="scaleYVal">100%</span>
+          </div>
+          <input type="range" id="scaleYSlider" min="25" max="250" value="100" />
+        </div>
+
+        <button class="btn btn-compact" id="resetScaleBtn" title="Reset Scale X, Y, and Whole Scale to 100%">
+          <span>[ RESET SCALE (100%) ]</span>
+        </button>
+
+        <div class="sub-group-label">GLYPHS &amp; SHADING</div>
         <div class="control-group">
           <div class="control-header">
             <span>Character Density (Cols)</span>
             <span class="control-val" id="densityVal">116</span>
           </div>
           <input type="range" id="densitySlider" min="40" max="220" value="116" />
-        </div>
-
-        <div class="control-group">
-          <div class="control-header">
-            <span>Contrast</span>
-            <span class="control-val" id="contrastVal">+22</span>
-          </div>
-          <input type="range" id="contrastSlider" min="-80" max="120" value="22" />
-        </div>
-
-        <div class="control-group">
-          <div class="control-header">
-            <span>Brightness</span>
-            <span class="control-val" id="brightnessVal">+4</span>
-          </div>
-          <input type="range" id="brightnessSlider" min="-100" max="100" value="4" />
         </div>
 
         <div class="control-group">
@@ -1295,6 +1493,22 @@
           <input type="text" id="customCharsetInput" value=" .:-=+*#%@" placeholder="Dark to bright chars..." />
         </div>
 
+        <div class="control-group">
+          <div class="control-header">
+            <span>Contrast</span>
+            <span class="control-val" id="contrastVal">+22</span>
+          </div>
+          <input type="range" id="contrastSlider" min="-80" max="120" value="22" />
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>Brightness</span>
+            <span class="control-val" id="brightnessVal">+4</span>
+          </div>
+          <input type="range" id="brightnessSlider" min="-100" max="100" value="4" />
+        </div>
+
         <label class="toggle-row">
           <span class="toggle-label">Invert Luminance</span>
           <input type="checkbox" id="invertToggle" class="hidden-input" />
@@ -1302,10 +1516,53 @@
         </label>
       </div>
 
-      <!-- 06. Export -->
+      <!-- STEP 05. Live Code Viewer -->
       <div class="section">
         <div class="section-title">
-          <span>┌─ 06 // EXPORT</span>
+          <span>┌─ 05 // LIVE CODE VIEWER</span>
+          <span id="codePaneFileTag" style="font-size: 9.5px; color: var(--text-secondary); max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">snowman_3d.py</span>
+        </div>
+
+        <label class="toggle-row">
+          <span class="toggle-label">Show Code Pane (C)</span>
+          <input type="checkbox" id="codePaneToggle" class="hidden-input" />
+          <span class="switch"></span>
+        </label>
+
+        <label class="toggle-row">
+          <span class="toggle-label">Auto-Scroll Execution</span>
+          <input type="checkbox" id="codeAutoScrollToggle" class="hidden-input" checked />
+          <span class="switch"></span>
+        </label>
+
+        <div class="control-group" id="codeSpeedControls">
+          <div class="control-header">
+            <span>Code Scroll Speed</span>
+            <span class="control-val" id="codeSpeedVal">0.55x</span>
+          </div>
+          <div class="segmented" id="codeScrollModeGroup">
+            <button class="seg-btn active" data-cmode="slow">SLOW</button>
+            <button class="seg-btn" data-cmode="norm">NORM</button>
+            <button class="seg-btn" data-cmode="fast">FAST</button>
+          </div>
+          <input type="range" id="codeSpeedSlider" min="0.25" max="2.50" step="0.05" value="0.55" title="Adjust Code Scroll Speed" />
+        </div>
+
+        <div class="code-btn-row">
+          <button class="btn btn-compact" id="copyCodeBtn" title="Copy Code to Clipboard">
+            <span>[ COPY CODE ]</span>
+          </button>
+          <button class="btn btn-compact" id="openPasteModalBtn" title="Paste or Edit Source Code">
+            <span>[ PASTE / EDIT ]</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 06. Export Studio -->
+      <div class="section">
+        <div class="section-title">
+          <span>┌─ 06 // EXPORT STUDIO</span>
+          <span class="guide-step-tag">RENDER</span>
         </div>
 
         <div class="export-stack">
@@ -1378,20 +1635,6 @@
               <span>[ DOWNLOAD LOOP GIF ]</span>
             </button>
           </div>
-
-          <div class="export-subcard">
-            <div class="control-header">
-              <span>HTML BG Filename</span>
-            </div>
-            <div class="filename-input-wrap">
-              <input type="text" id="htmlFilenameInput" value="ascii-wallpaper" placeholder="custom-name" />
-              <span class="filename-ext">.html</span>
-            </div>
-            <button class="btn btn-primary" id="exportHtmlBtn">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-              <span>[ EXPORT HTML BG ]</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -1400,7 +1643,7 @@
 
   <!-- Right Preview Stage (Boxed Terminal UI) -->
   <main class="stage-wrapper" id="stageWrapper">
-    <button class="floating-exit-clean" id="exitCleanBtn">[ EXIT FULLSCREEN / ESC ]</button>
+    <button class="floating-exit-clean" id="exitCleanBtn">[ EXIT CLEAN MODE / ESC ]</button>
 
     <header class="stage-topbar">
       <div class="stage-left-tools">
@@ -1410,7 +1653,7 @@
           </svg>
           <span>CONTROLS</span>
         </button>
-        <span class="badge" id="sourceBadge">py snowman_3d.py</span>
+        <span class="badge" id="attributionBadge">@ascii.studio - 2026</span>
         <span class="badge" id="gridBadge">116 × 64</span>
       </div>
     </header>
@@ -1503,16 +1746,14 @@
   const state = {
     sourceType: 'procedural', // 'procedural' | 'image' | 'video' | 'gif'
     proceduralId: 'snowman',
-    sourceName: 'snowman_3d.py',
-
-    // Playback & Simulation
+    // Playback & Simulation (Smooth 30 FPS Auto Lock)
+    targetFps: 30,
     isPlaying: true,
     simTime: 0,
     mediaElapsed: 0,
     videoDuration: 8.0,
-    // Shared animation period used by the premade 3D model renderers.
     loopDuration: 8.0,
-    fpsSmoothed: 60,
+    fpsSmoothed: 30,
     activeLetters: 0,
     gridCols: 116,
     gridRows: 64,
@@ -1521,6 +1762,8 @@
     buildAnimEnabled: true,
     buildProgress: 0,
     buildDuration: 3.5,
+    buildColor: '#10b981',
+    buildColorMix: 'combine', // 'combine' | 'build_white' | 'gen_white'
 
     // Live Scrolling Code Pane
     showCodePane: false,
@@ -1536,18 +1779,28 @@
     codeTotalLines: 1,
     codeVisibleLines: 1,
     customCodeText: '',
+    generatedMediaCode: '',
+    generatedMediaFilename: 'generated_media.py',
+    rawMediaName: '',
+    sampledMediaPalette: [],
+    mediaRenderError: '',
 
     // Aesthetic & Color
     colorMode: 'mono',        // 'mono' | 'rgb' | 'tint'
     tintColor: '#00ff41',
     bgColor: '#000000',
-    vibrancy: 1.3,
+    vibrancy: 1.0,
     particles: true,
+    particleColor: '#c8d2e1',
+    attribution: '@ascii.studio - 2026',
     showHud: true,
     cleanMode: false,
 
     // Grid & Shading
     cols: 116,
+    scale: 1.0,
+    scaleX: 1.0,
+    scaleY: 1.0,
     contrast: 22,
     brightness: 4,
     charsetKey: 'detailed',
@@ -1559,7 +1812,6 @@
     gifFps: 15,
     gifLoop: 0,
     gifScale: 640,
-    htmlFilename: 'ascii-wallpaper',
 
     // Dirty flag for static images
     dirty: true,
@@ -1636,17 +1888,18 @@
   }
 
   const sourceVideo = document.getElementById('sourceVideo');
-  const sourceBadge = document.getElementById('sourceBadge');
+  const attributionBadge = document.getElementById('attributionBadge');
   const gridBadge = document.getElementById('gridBadge');
   const timeReadout = document.getElementById('timeReadout');
   const timelineScrubber = document.getElementById('timelineScrubber');
 
   function hexToRgb(hex) {
-    const clean = hex.replace('#', '');
-    const num = parseInt(
-      clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean,
-      16
-    );
+    const clean = (hex || '#000000').replace('#', '');
+    const normalized = clean.length === 3
+      ? clean.split('').map(c => c + c).join('')
+      : clean.padEnd(6, '0');
+    const num = parseInt(normalized, 16);
+    if (Number.isNaN(num)) return [0, 0, 0];
     return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
   }
 
@@ -1678,7 +1931,7 @@
     key: '',
     cellW: 10,
     cellH: 18,
-    ramp: '',
+    ramp: [],
     monoStrips: [],
     tintStrips: [],
     rgbCache: new Map(),
@@ -1702,7 +1955,7 @@
   }
 
   function ensureGlyphAtlas(ramp, cellW, cellH, tintHex) {
-    const key = `${ramp}|${cellW}x${cellH}|${tintHex}`;
+    const key = `${ramp.join('')}|${cellW}x${cellH}|${tintHex}`;
     if (glyphEngine.key === key) return;
 
     glyphEngine.key = key;
@@ -1719,9 +1972,7 @@
 
     const fontPx = Math.max(6, Math.round(cellH * 0.88));
     const fontStr = `600 ${fontPx}px "JetBrains Mono", "Fira Code", monospace`;
-    const tr = parseInt(tintHex.slice(1, 3), 16) || 0;
-    const tg = parseInt(tintHex.slice(3, 5), 16) || 255;
-    const tb = parseInt(tintHex.slice(5, 7), 16) || 65;
+    const [tr, tg, tb] = hexToRgb(tintHex);
 
     for (let s = 0; s < SHADE_LEVELS; s++) {
       const t = s / (SHADE_LEVELS - 1);
@@ -1775,7 +2026,7 @@
       gctx.fillText(ramp[i], i * cellW + cellW * 0.5, midY);
     }
 
-    if (glyphEngine.rgbCache.size >= 420) {
+    if (glyphEngine.rgbCache.size >= 1600) {
       const oldestKey = glyphEngine.rgbCache.keys().next().value;
       const recycled = glyphEngine.rgbCache.get(oldestKey);
       glyphEngine.rgbCache.delete(oldestKey);
@@ -1806,7 +2057,7 @@
   }
   initParticles();
 
-  function updateAndDrawParticles(targetCtx, width, height, dt, advance) {
+  function updateAndDrawParticles(targetCtx, width, height, dt, advance, layer = 'all') {
     if (!state.particles) return;
     targetCtx.save();
     const baseFont = Math.max(9, Math.round(width / 115));
@@ -1814,14 +2065,11 @@
     targetCtx.textAlign = 'center';
     targetCtx.textBaseline = 'middle';
 
-    let pr = 200, pg = 210, pb = 225;
-    if (state.colorMode === 'tint') {
-      pr = parseInt(state.tintColor.slice(1, 3), 16) || 0;
-      pg = parseInt(state.tintColor.slice(3, 5), 16) || 255;
-      pb = parseInt(state.tintColor.slice(5, 7), 16) || 65;
-    }
+    const [pr, pg, pb] = hexToRgb(state.particleColor || '#c8d2e1');
+    const startIdx = layer === 'fg' ? 96 : 0;
+    const endIdx = layer === 'bg' ? 96 : ambientParticles.length;
 
-    for (let i = 0; i < ambientParticles.length; i++) {
+    for (let i = startIdx; i < endIdx; i++) {
       const p = ambientParticles[i];
       if (advance) {
         p.y += p.vy * dt;
@@ -1833,7 +2081,8 @@
         if (p.x < -0.02) p.x = 1.02;
         if (p.x > 1.02) p.x = -0.02;
       }
-      const alpha = 0.22 + 0.35 * (0.5 + 0.5 * Math.sin(state.simTime * 2.5 + p.phase));
+      const layerBoost = layer === 'fg' ? 1.15 : 0.92;
+      const alpha = Math.min(0.88, (0.24 + 0.36 * (0.5 + 0.5 * Math.sin(state.simTime * 2.5 + p.phase))) * layerBoost);
       targetCtx.fillStyle = `rgba(${pr},${pg},${pb},${alpha.toFixed(2)})`;
       targetCtx.fillText(p.char, p.x * width, p.y * height);
     }
@@ -1880,6 +2129,24 @@
     ctx.drawImage(sprite, cx - sprite.width * 0.5, cy - sprite.height * 0.5);
   }
 
+  function drawRoundedRectPath(c, x, y, w, h, r) {
+    if (typeof c.roundRect === 'function') {
+      c.roundRect(x, y, w, h, r);
+      return;
+    }
+    const rad = Math.min(r, w * 0.5, h * 0.5);
+    c.moveTo(x + rad, y);
+    c.lineTo(x + w - rad, y);
+    c.quadraticCurveTo(x + w, y, x + w, y + rad);
+    c.lineTo(x + w, y + h - rad);
+    c.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    c.lineTo(x + rad, y + h);
+    c.quadraticCurveTo(x, y + h, x, y + h - rad);
+    c.lineTo(x, y + rad);
+    c.quadraticCurveTo(x, y, x + rad, y);
+    c.closePath();
+  }
+
   // 5.1 Snowman
   function renderProceduralSnowman(t) {
     const w = PW, h = PH;
@@ -1924,7 +2191,7 @@
     procCtx.save();
     procCtx.fillStyle = '#dc2626';
     procCtx.beginPath();
-    procCtx.roundRect(cx - 26, neckY - 4, 52, 9.5, 5);
+    drawRoundedRectPath(procCtx, cx - 26, neckY - 4, 52, 9.5, 5);
     procCtx.fill();
 
     const tailSway = Math.sin((t / state.loopDuration) * Math.PI * 4) * 5.5;
@@ -2128,7 +2395,7 @@
           plotZPixel32(x, y, -uz, packAbgr(cr, cg, cb));
         }
 
-        // 2. Check Tilted Ring Plane intersection (ray along +Z)
+        // 2. Check Tilted Ring Plane intersection (front arc z < 0, back arc z > 0)
         if (Math.abs(sinTilt) > 0.05) {
           const rz = -uy / sinTilt;
           const ryRing = uy * cosTilt - rz * sinTilt;
@@ -2142,7 +2409,7 @@
             const cr = Math.min(255, (226 * ringWave * shimmer) | 0);
             const cg = Math.min(255, (196 * ringWave * shimmer) | 0);
             const cb = Math.min(255, (152 * ringWave * shimmer) | 0);
-            plotZPixel32(x, y, -rz, packAbgr(cr, cg, cb));
+            plotZPixel32(x, y, rz, packAbgr(cr, cg, cb));
           }
         }
       }
@@ -2230,7 +2497,6 @@
 
     const projectedFaces = faces.map(pts => {
       const p = pts.map(project);
-      // Cross product normal in view space
       const ax = p[1].v[0] - p[0].v[0], ay = p[1].v[1] - p[0].v[1], az = p[1].v[2] - p[0].v[2];
       const bx = p[2].v[0] - p[0].v[0], by = p[2].v[1] - p[0].v[1], bz = p[2].v[2] - p[0].v[2];
       let nx = ay * bz - az * by;
@@ -2243,7 +2509,7 @@
     }).sort((a, b) => b.avgZ - a.avgZ);
 
     for (const f of projectedFaces) {
-      if (f.nz > 0.15) continue; // Back-face cull
+      if (f.nz > 0.15) continue;
       const light = Math.max(0.22, Math.min(1.0, 0.35 + (-f.nx * 0.5 - f.ny * 0.5 - f.nz * 0.7) * 0.72));
       const r = Math.min(255, Math.round(55 + light * 155));
       const g = Math.min(255, Math.round(165 + light * 90));
@@ -2276,7 +2542,6 @@
       const x2 = -x1;
       const z2 = -z1;
 
-      // Base-pair connecting rung
       const steps = 18;
       for (let s = 1; s < steps; s++) {
         const f = s / steps;
@@ -2289,7 +2554,6 @@
         plotZDisc32(rx, y, 1.5, rz, col);
       }
 
-      // Strand A & Strand B backbone spheres
       const f1 = 0.55 + 0.45 * (1 - z1 * 0.5);
       const f2 = 0.55 + 0.45 * (1 - z2 * 0.5);
       plotZDisc32(cx + x1, y, 4.4 * (1 - z1 * 0.16), z1, packAbgr((56 * f1) | 0, (189 * f1) | 0, (248 * f1) | 0));
@@ -2317,7 +2581,6 @@
         const lat = Math.asin(ny);
         const lon = Math.atan2(nx, nz) + rot;
 
-        // Procedural continents + lat/lon grid
         const cont = Math.sin(lon * 2.2 + Math.cos(lat * 3.1)) + Math.cos(lat * 3.5 - Math.sin(lon * 1.8));
         const gridLine = Math.abs(Math.sin(lat * 6)) < 0.06 || Math.abs(Math.sin(lon * 6)) < 0.06;
         const diff = Math.max(0.18, nx * lx + ny * ly + nz * lz);
@@ -2337,7 +2600,6 @@
       }
     }
 
-    // Orbiting satellite ring
     for (let i = 0; i < 140; i++) {
       const a = (i / 140) * Math.PI * 2 + rot * 1.5;
       const ox = Math.cos(a) * 86;
@@ -2442,7 +2704,6 @@
     const cx = PW * 0.5, cy = PH * 0.5;
     const ehR = 30;
 
-    // Relativistic Accretion Disk
     for (let i = 0; i < 2200; i++) {
       const u = i / 2200;
       const rad = ehR * 1.18 + u * 58;
@@ -2450,7 +2711,6 @@
       const dx = Math.cos(angle) * rad;
       const dz = Math.sin(angle) * rad;
       const dy = dz * 0.24;
-      // Doppler beaming (left side approaches -> brighter blue-white; right side recedes -> orange-red)
       const doppler = Math.max(0.3, Math.min(1.35, 0.85 - (dx / 88) * 0.55));
       const heat = 1 - u * 0.65;
       const cr = Math.min(255, (255 * doppler) | 0);
@@ -2459,7 +2719,6 @@
       plotZDisc32(cx + dx, cy + dy, 1.8, dz, packAbgr(cr, cg, cb));
     }
 
-    // Gravitationally Lensed Upper & Lower Einstein Ring Halos
     for (let i = 0; i < 520; i++) {
       const a = (i / 520) * Math.PI * 2;
       const rad = ehR * 1.16 + Math.sin(a * 5 + rot) * 1.5;
@@ -2479,7 +2738,6 @@
       );
     }
 
-    // Event Horizon Shadow (Pitch Black Core)
     plotZDisc32(cx, cy, ehR, -12, packAbgr(0, 0, 0));
     procCtx.putImageData(procImgData, 0, 0);
   }
@@ -2498,7 +2756,6 @@
     procCtx.translate(cx, cy);
     procCtx.rotate(Math.sin((t / state.loopDuration) * Math.PI * 2) * 0.08);
 
-    // Animated Thruster Flame
     const flameLen = 34 + Math.sin(t * 38) * 9;
     const flameGrad = procCtx.createLinearGradient(0, 34, 0, 34 + flameLen);
     flameGrad.addColorStop(0, '#ffffff');
@@ -2513,7 +2770,6 @@
     procCtx.closePath();
     procCtx.fill();
 
-    // Swept Delta Fins
     procCtx.fillStyle = '#ef4444';
     procCtx.beginPath();
     procCtx.moveTo(-17, 12);
@@ -2529,7 +2785,6 @@
     procCtx.closePath();
     procCtx.fill();
 
-    // Cylindrical Fuselage with 3D Shading
     const bodyGrad = procCtx.createLinearGradient(-20, 0, 20, 0);
     bodyGrad.addColorStop(0, '#64748b');
     bodyGrad.addColorStop(0.35, '#f8fafc');
@@ -2544,7 +2799,6 @@
     procCtx.closePath();
     procCtx.fill();
 
-    // Red Nose Cone Tip
     procCtx.fillStyle = '#dc2626';
     procCtx.beginPath();
     procCtx.moveTo(0, -56);
@@ -2554,7 +2808,6 @@
     procCtx.closePath();
     procCtx.fill();
 
-    // Cockpit Porthole
     drawShadedSphere(procCtx, 0, -8, 8.5, [56, 189, 248], { x: -0.4, y: -0.4 });
     procCtx.restore();
   }
@@ -2595,23 +2848,18 @@
     const cosB = Math.cos(b), sinB = Math.sin(b);
 
     const projected = TESSERACT_VERTS.map(([x, y, z, w4]) => {
-      // Rotate in XW plane
       const x1 = x * cosA - w4 * sinA;
       const w1 = x * sinA + w4 * cosA;
-      // Rotate in YW plane
       const y1 = y * cosB - w1 * sinB;
       const w2 = y * sinB + w1 * cosB;
-      // Rotate in XZ plane
       const x2 = x1 * cosB - z * sinB;
       const z2 = x1 * sinB + z * cosB;
 
-      // 4D -> 3D stereographic projection
       const d4 = 2.6 / (2.6 - w2);
       const px3 = x2 * d4;
       const py3 = y1 * d4;
       const pz3 = z2 * d4;
 
-      // 3D -> 2D perspective projection
       const d3 = 3.2 / (3.2 + pz3);
       return {
         sx: w * 0.5 + px3 * w * 0.24 * d3,
@@ -2645,7 +2893,6 @@
     }
   }
 
-
   function renderProceduralScene(id, t) {
     switch (id) {
       case 'snowman':   renderProceduralSnowman(t); break;
@@ -2668,13 +2915,19 @@
    * 6. LIVE SCROLLING SOURCE CODE SNIPPETS & SYNTAX TOKENIZER
    * ========================================================================= */
   const SOURCE_CODE_SNIPPETS = {
-    snowman: `# snowman_3d.py — Volumetric 3D Shaded ASCII Renderer
-import math, time
+    snowman: `# snowman_3d.py — Volumetric 3D Shaded ASCII & Particle Engine
+import math, random
 
 LIGHT_DIR = (-0.45, -0.55, 0.70)
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
 RAMP = " .'\`^\\",:;Il!i><~+_-?][}{1)(|\\\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 
-def shade_sphere(cx, cy, radius, z_buf, frame_buf):
+def step_particles(particles, dt):
+    for p in particles:
+        p['y'] = (p['y'] + p['vy'] * dt) % 1.0
+        p['x'] = (p['x'] + math.sin(p['phase'] + p['y'] * 6.28) * 0.012 * dt) % 1.0
+
+def shade_sphere(cx, cy, radius, frame_buf):
     r2 = radius * radius
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):
@@ -2683,26 +2936,32 @@ def shade_sphere(cx, cy, radius, z_buf, frame_buf):
                 dz = math.sqrt(r2 - d2)
                 nx, ny, nz = dx / radius, dy / radius, dz / radius
                 lum = max(0.14, nx * LIGHT_DIR[0] + ny * LIGHT_DIR[1] + nz * LIGHT_DIR[2])
-                idx = int(lum * (len(RAMP) - 1))
-                frame_buf[(cx + dx, cy + dy)] = RAMP[idx]
+                frame_buf[(cx + dx, cy + dy)] = RAMP[int(lum * (len(RAMP) - 1))]
 
-def render_frame(t):
+def render_frame(t, particles):
+    step_particles(particles, 1.0 / 30.0)
     bob = abs(math.sin(t * 2.1)) * 4.0
-    spheres = [(54 - bob * 0.25, 44), (-2 - bob * 0.55, 33), (-44 - bob, 23)]
-    for y_off, rad in spheres:
-        shade_sphere(58, int(32 + y_off * 0.4), rad, {}, {})
+    for y_off, rad in [(54 - bob * 0.25, 44), (-2 - bob * 0.55, 33), (-44 - bob, 23)]:
+        shade_sphere(58, int(32 + y_off * 0.4), rad, {})
     return True`,
-    tree: `# christmas_tree.py — Procedural 3D Conical Pine & RGB Ornaments
+    tree: `# christmas_tree.py — Procedural 3D Conical Pine & Particle Field
 import math
 
 PALETTE = [(255, 55, 75), (255, 205, 45), (45, 225, 255), (245, 75, 245)]
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def step_particles(particles, dt):
+    for p in particles:
+        p['y'] = (p['y'] + p['vy'] * dt) % 1.0
+        p['x'] = (p['x'] + p['vx'] * dt) % 1.0
 
 def sample_foliage(x, y, z, rot):
     angle = math.atan2(z, x) + rot
     bough_wave = 0.78 + 0.22 * math.sin(angle * 7.0 + y * 0.25)
     return (24, int(220 * bough_wave), int(88 * bough_wave))
 
-def place_ornaments(count, rot):
+def place_ornaments(count, rot, particles):
+    step_particles(particles, 1.0 / 30.0)
     golden_angle = 2.39996323
     nodes = []
     for i in range(count):
@@ -2712,12 +2971,13 @@ def place_ornaments(count, rot):
         theta = rot * 1.4 + i * golden_angle
         nodes.append((math.cos(theta) * radius, oy, math.sin(theta) * radius, PALETTE[i % 4]))
     return nodes`,
-    saturn: `# saturn_rings.py — Axial-Tilted Gas Giant & Cassini Division
+    saturn: `# saturn_rings.py — Axial-Tilted Gas Giant & Starfield Particles
 import math
 
 AXIAL_TILT = 0.38
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
 
-def project_ring_particle(radius, angle):
+def project_ring_particle(radius, angle, stars):
     if 77.0 < radius < 82.0:
         return None  # Cassini Division gap
     rx = math.cos(angle) * radius
@@ -2725,15 +2985,20 @@ def project_ring_particle(radius, angle):
     ry = rz * 0.34
     tx = rx * math.cos(AXIAL_TILT) - ry * math.sin(AXIAL_TILT)
     ty = rx * math.sin(AXIAL_TILT) + ry * math.cos(AXIAL_TILT)
-    return (tx, ty, rz * 0.94)`,
-    donut: `# torus_shader.py — Classic Z-Buffered 3D Torus Projection
+    return (tx, ty, rz * 0.94, len(stars))`,
+    donut: `# torus_shader.py — Classic Z-Buffered 3D Torus & Particle Drift
 import math
 
-def render_torus(A, B, cols=116, rows=64):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def render_torus(A, B, particles, cols=116, rows=64):
     cosA, sinA = math.cos(A), math.sin(A)
     cosB, sinB = math.cos(B), math.sin(B)
     zbuffer = [0.0] * (cols * rows)
     output = [' '] * (cols * rows)
+    for p in particles:
+        px, py = int(p['x'] * cols) % cols, int(p['y'] * rows) % rows
+        output[py * cols + px] = PARTICLE_GLYPHS[p['id'] % 6]
     for theta_step in range(0, 628, 7):
         ct, st = math.cos(theta_step / 100), math.sin(theta_step / 100)
         for phi_step in range(0, 628, 3):
@@ -2747,87 +3012,111 @@ def render_torus(A, B, cols=116, rows=64):
                 zbuffer[y * cols + x] = D
                 output[y * cols + x] = '@'
     return output`,
-    crystal: `# crystal_prism.py — Hexagonal Bipyramid Spectral Dispersion
+    crystal: `# crystal_prism.py — Hexagonal Bipyramid & Ambient Sparkles
 import math
 
-def build_prism_vertices(rot, sides=6, radius=48.0):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def build_prism_vertices(rot, particles, sides=6, radius=48.0):
     top_ring, bot_ring = [], []
     for i in range(sides):
         theta = rot + (i / sides) * math.tau
         top_ring.append((math.cos(theta) * radius, -22.0, math.sin(theta) * radius))
         bot_ring.append((math.cos(theta) * radius,  22.0, math.sin(theta) * radius))
-    return top_ring, bot_ring`,
-    dna: `# double_helix.py — Complementary Base-Pair Strand Generator
+    return top_ring, bot_ring, particles`,
+    dna: `# double_helix.py — Complementary Base-Pair & Particle Field
 import math
 
-def step_helix(t, height=164, radius=46.0):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def step_helix(t, particles, height=164, radius=46.0):
     strands = []
     for y in range(-height // 2, height // 2 + 1, 2):
         phase = y * 0.055 + t * 2.2
         x1, z1 = math.cos(phase) * radius, math.sin(phase) * radius
         strands.append(((x1, y, z1), (-x1, y, -z1)))
-    return strands`,
-    globe: `# cyber_globe.py — Lat/Lon Spherical Landmass & Satellite Orbit
+    return strands, particles`,
+    globe: `# cyber_globe.py — Spherical Landmass & Orbital Particle Ring
 import math
 
-def sample_surface(nx, ny, nz, rot):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def sample_surface(nx, ny, nz, rot, particles):
     lon = math.atan2(nx, nz) + rot
     lat = math.asin(max(-1.0, min(1.0, ny)))
     continent = math.sin(lon * 3.0) * math.cos(lat * 3.0) + 0.5 * math.sin(lon * 5.0 - lat * 2.0)
-    return "LAND" if continent > 0.28 else "OCEAN"`,
-    heart: `# volumetric_heart.py — Parametric 3D Cardiac Surface
+    return ("LAND" if continent > 0.28 else "OCEAN"), len(particles)`,
+    heart: `# volumetric_heart.py — Parametric 3D Cardiac & Particle Field
 import math
 
-def heart_point(u, z_layer, beat_scale):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def heart_point(u, z_layer, beat_scale, particles):
     su = math.sin(u)
     hx = 16.0 * (su ** 3)
     hy = -(13.0 * math.cos(u) - 5.0 * math.cos(2 * u) - 2.0 * math.cos(3 * u) - math.cos(4 * u))
     shrink = math.sqrt(max(0.05, 1.0 - (z_layer / 20.0) ** 2))
-    return (hx * beat_scale * shrink, (hy - 2.0) * beat_scale * shrink, z_layer * beat_scale)`,
-    galaxy: `# spiral_galaxy.py — 3-Arm Logarithmic Stellar Density Field
+    return (hx * beat_scale * shrink, (hy - 2.0) * beat_scale * shrink, z_layer * beat_scale, particles)`,
+    galaxy: `# spiral_galaxy.py — 3-Arm Logarithmic Stellar & Particle Field
 import math
 
-def spiral_arm_coords(arm_idx, u, rot, arms=3):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def spiral_arm_coords(arm_idx, u, rot, particles, arms=3):
     base_angle = (arm_idx / arms) * math.tau + rot
     radius = u * 96.0
     theta = base_angle + u * 3.8
-    return math.cos(theta) * radius, math.sin(theta) * radius`,
-    blackhole: `# black_hole.py — Relativistic Accretion Disk & Photon Ring
+    return math.cos(theta) * radius, math.sin(theta) * radius, len(particles)`,
+    blackhole: `# black_hole.py — Relativistic Accretion Disk & Star Particles
 import math
 
 EVENT_HORIZON_R = 31.0
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
 
-def accretion_temperature(radius):
+def accretion_temperature(radius, particles):
     heat = max(0.0, min(1.0, 1.0 - (radius - 34.0) / 64.0))
-    return (255, int(85 + heat * 165), int(25 + heat * 175))`,
-    rocket: `# starship_orbit.py — Multi-Stage Fuselage & Plasma Exhaust
+    return (255, int(85 + heat * 165), int(25 + heat * 175), len(particles))`,
+    rocket: `# starship_orbit.py — Multi-Stage Fuselage & Star Particles
 import math
 
-def thrust_plume(t, fy, max_len=28.0):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def thrust_plume(t, fy, particles, max_len=28.0):
     u = fy / max_len
     wobble = math.sin(t * 20.0 + fy) * 2.0
-    return wobble, (1.0 - u) * 11.0 + 2.0`,
-    tesseract: `# tesseract_4d.py — 4D Hypercube Stereographic Projection
+    return wobble, (1.0 - u) * 11.0 + 2.0, len(particles)`,
+    tesseract: `# tesseract_4d.py — 4D Hypercube & Ambient Particle Matrix
 import math
 
-def project_4d_vertex(x, y, z, w, a1, a2):
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+def project_4d_vertex(x, y, z, w, a1, a2, particles):
     x1 = x * math.cos(a1) - w * math.sin(a1)
     w1 = x * math.sin(a1) + w * math.cos(a1)
     z1 = z * math.cos(a2) - w1 * math.sin(a2)
     w2 = z * math.sin(a2) + w1 * math.cos(a2)
     persp = 2.6 / (3.2 - w2)
-    return x1 * persp * 46.0, y * persp * 46.0, z1 * persp * 46.0`,
-    media: `# render_media_ascii.py — Real-Time Luminance & RGB Glyph Mapper
+    return x1 * persp * 46.0, y * persp * 46.0, z1 * persp * 46.0, len(particles)`,
+    media: `# render_media_ascii.py — Real-Time Luminance, RGB & Particle Mapper
 RAMP = " .'\`^\\",:;Il!i><~+_-?][}{1)(|\\\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
 
-def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
+def pixel_to_ascii(r, g, b, contrast_lut, particles, invert=False):
     lum = (77 * r + 150 * g + 29 * b) >> 8
     lum = contrast_lut[lum]
     if invert:
         lum = 255 - lum
     idx = (lum * (len(RAMP) - 1) + 127) >> 8
-    return RAMP[idx], (r, g, b)`
+    return RAMP[idx], (r, g, b), len(particles)`
   };
+
+  function getActiveSourceFilename() {
+    if (state.customCodeText && state.customCodeText.trim().length > 0) return 'custom_script.py';
+    if (state.sourceType === 'procedural') {
+      return PREMADE_META[state.proceduralId]?.file || `${state.proceduralId}_3d.py`;
+    }
+    return state.generatedMediaFilename || 'reconstructed_model.py';
+  }
 
   function getActiveSourceCode() {
     if (state.customCodeText && state.customCodeText.trim().length > 0) {
@@ -2836,7 +3125,233 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     if (state.sourceType === 'procedural') {
       return SOURCE_CODE_SNIPPETS[state.proceduralId] || SOURCE_CODE_SNIPPETS.snowman;
     }
-    return SOURCE_CODE_SNIPPETS.media;
+    return state.generatedMediaCode || SOURCE_CODE_SNIPPETS.media;
+  }
+
+  // Extract a representative 6-color palette once per imported asset for the code pane
+  function extractPaletteFromDrawable(drawable) {
+    if (!drawable) return [];
+    try {
+      const probe = document.createElement('canvas');
+      probe.width = 48;
+      probe.height = 48;
+      const pctx = probe.getContext('2d', { willReadFrequently: true });
+      pctx.drawImage(drawable, 0, 0, 48, 48);
+      const data = pctx.getImageData(0, 0, 48, 48).data;
+      const samples = [];
+      for (let i = 0; i < data.length; i += 16) {
+        if (data[i + 3] < 32) continue;
+        samples.push([data[i], data[i + 1], data[i + 2]]);
+      }
+      if (!samples.length) return [];
+      const palette = [samples[Math.floor(samples.length * 0.25)].slice()];
+      while (palette.length < 6) {
+        let best = null;
+        let bestDist = -1;
+        for (let i = 0; i < samples.length; i++) {
+          const c = samples[i];
+          let nearest = Infinity;
+          for (let k = 0; k < palette.length; k++) {
+            const p = palette[k];
+            const dr = c[0] - p[0], dg = c[1] - p[1], db = c[2] - p[2];
+            const d = dr * dr * 0.30 + dg * dg * 0.59 + db * db * 0.11;
+            if (d < nearest) nearest = d;
+          }
+          if (nearest > bestDist) {
+            bestDist = nearest;
+            best = c;
+          }
+        }
+        if (!best || bestDist < 120) break;
+        palette.push(best.slice());
+      }
+      return palette;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function buildGeneratedModelSource(paletteOverride = null) {
+    const filename = state.generatedMediaFilename || 'uploaded_media.py';
+    const rawName = state.rawMediaName || state.sourceName || 'uploaded_media';
+    const srcDim = getSourceDimensions();
+    const rampStr = JSON.stringify(getActiveRamp().join(''));
+    const modeLabel = state.colorMode === 'rgb' ? 'FULL_RGB' : (state.colorMode === 'tint' ? 'PHOSPHOR_TINT' : 'MONOCHROME');
+    const [pr, pg, pb] = hexToRgb(state.particleColor || '#c8d2e1');
+    const [br, bg, bb] = hexToRgb(state.buildColor || '#10b981');
+
+    let mediaKind = 'Static Raster Image';
+    let loaderImport = 'from PIL import Image';
+    let loaderBody = [
+      'def load_media_frames(path: str):',
+      '    """Decode static image and preserve exact source aspect ratio."""',
+      '    img = Image.open(path).convert("RGB")',
+      '    resized = img.resize((GRID_COLS, GRID_ROWS), Image.Resampling.BILINEAR)',
+      '    return [(0.0, list(resized.getdata()))]'
+    ].join('\n');
+
+    if (state.sourceType === 'gif') {
+      const fCount = Math.max(1, state.gifFrames.length);
+      const dur = (state.gifDuration || 0).toFixed(2);
+      mediaKind = `Animated GIF (${fCount} frames, ${dur}s loop)`;
+      loaderImport = 'from PIL import Image, ImageSequence';
+      loaderBody = [
+        'def load_media_frames(path: str):',
+        '    """Extract GIF frames and per-frame timing deltas."""',
+        '    frames, clock = [], 0.0',
+        '    with Image.open(path) as gif:',
+        '        for frame in ImageSequence.Iterator(gif):',
+        '            dt = max(0.02, frame.info.get("duration", 100) / 1000.0)',
+        '            rgb = frame.convert("RGB").resize((GRID_COLS, GRID_ROWS), Image.Resampling.BILINEAR)',
+        '            frames.append((clock, list(rgb.getdata())))',
+        '            clock += dt',
+        '    return frames'
+      ].join('\n');
+    } else if (state.sourceType === 'video') {
+      mediaKind = `Video Stream (${srcDim.w}x${srcDim.h})`;
+      loaderImport = 'import cv2';
+      loaderBody = [
+        'def load_media_frames(path: str):',
+        '    """Sample video frames into the target ASCII character grid."""',
+        '    cap = cv2.VideoCapture(path)',
+        '    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0',
+        '    frames, idx = [], 0',
+        '    while cap.isOpened():',
+        '        ok, bgr = cap.read()',
+        '        if not ok:',
+        '            break',
+        '        rgb = cv2.cvtColor(cv2.resize(bgr, (GRID_COLS, GRID_ROWS)), cv2.COLOR_BGR2RGB)',
+        '        frames.append((idx / fps, rgb.reshape(-1, 3).tolist()))',
+        '        idx += 1',
+        '    cap.release()',
+        '    return frames'
+      ].join('\n');
+    }
+
+    const activePalette = (Array.isArray(paletteOverride) && paletteOverride.length > 0)
+      ? paletteOverride
+      : state.sampledMediaPalette;
+
+    const rawPalette = (Array.isArray(activePalette) && activePalette.length > 0)
+      ? activePalette
+      : [[16, 185, 129], [56, 189, 248], [244, 244, 246], [156, 163, 175], [52, 211, 153], [24, 24, 32]];
+
+    const fixedPalette = [];
+    for (let i = 0; i < 6; i++) {
+      const c = rawPalette[i % rawPalette.length] || [200, 200, 200];
+      const hex = '#' + c.map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0').toUpperCase()).join('');
+      fixedPalette.push(`    (${String(c[0]).padStart(3)}, ${String(c[1]).padStart(3)}, ${String(c[2]).padStart(3)}),  # ${hex} sampled tone`);
+    }
+
+    return `# ${filename}
+# ASCII Studio Engine — Direct Full-Color Media & Particle Shader
+# Asset: ${JSON.stringify(rawName)} (${mediaKind})
+# Author: ${JSON.stringify(state.attribution || '@ascii.studio - 2026')}
+
+import math, random
+${loaderImport}
+
+SOURCE_PATH = ${JSON.stringify(rawName)}
+ATTRIBUTION = ${JSON.stringify(state.attribution || '@ascii.studio - 2026')}
+TARGET_FPS = 30
+SOURCE_SIZE = (${srcDim.w}, ${srcDim.h})
+GRID_COLS, GRID_ROWS = ${state.gridCols}, ${state.gridRows}
+CELL_ASPECT = 1.80
+SCALE_VEC = (${state.scale.toFixed(2)}, ${state.scaleX.toFixed(2)}, ${state.scaleY.toFixed(2)})
+
+COLOR_MODE = "${modeLabel}"
+CONTRAST = ${state.contrast}
+BRIGHTNESS = ${state.brightness}
+INVERT_LUMA = ${state.invert ? 'True' : 'False'}
+
+PARTICLES_ENABLED = ${state.particles ? 'True' : 'False'}
+PARTICLE_COLOR = (${pr}, ${pg}, ${pb})
+PARTICLE_GLYPHS = ['*', '+', '.', '·', '✦', '°']
+
+BUILD_COLOR = (${br}, ${bg}, ${bb})
+BUILD_MIX_MODE = "${state.buildColorMix.toUpperCase()}"
+
+RAMP = ${rampStr}
+
+# Dominant RGB tones extracted from imported media
+SAMPLED_PALETTE = [
+${fixedPalette.join('\n')}
+]
+
+
+def init_particles(count: int = 130) -> list:
+    """Spawn integrated ASCII background & foreground drift particles."""
+    return [
+        {
+            "x": random.random(),
+            "y": random.random(),
+            "vy": 0.03 + random.random() * 0.09,
+            "vx": (random.random() - 0.5) * 0.025,
+            "phase": random.random() * math.tau,
+            "glyph": PARTICLE_GLYPHS[i % len(PARTICLE_GLYPHS)],
+        }
+        for i in range(count)
+    ]
+
+
+def step_particles(particles: list, t: float, dt: float) -> None:
+    """Advance particle positions seamlessly inside the video frame."""
+    if not PARTICLES_ENABLED:
+        return
+    for p in particles:
+        p["y"] = (p["y"] + p["vy"] * dt) % 1.0
+        p["x"] = (p["x"] + (p["vx"] + math.sin(t * 1.4 + p["phase"]) * 0.012) * dt) % 1.0
+
+
+def build_contrast_lut(contrast: int, brightness: int) -> list:
+    """Precompute 256-entry luminance transfer table."""
+    factor = (259 * (contrast + 255)) / (255 * (259 - contrast))
+    lut = []
+    for i in range(256):
+        val = int(factor * (i - 128) + 128 + brightness)
+        lut.append(max(0, min(255, val)))
+    return lut
+
+
+${loaderBody}
+
+
+def sample_ascii_buffer(rgb_pixels: list, lut: list, particles: list) -> list:
+    """Compose integrated particles and Rec.601 luminance glyphs into grid."""
+    ramp_max = len(RAMP) - 1
+    grid = [[" " for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
+    if PARTICLES_ENABLED:
+        for p in particles:
+            gx = int(p["x"] * GRID_COLS) % GRID_COLS
+            gy = int(p["y"] * GRID_ROWS) % GRID_ROWS
+            grid[gy][gx] = p["glyph"]
+    for r in range(GRID_ROWS):
+        row_offset = r * GRID_COLS
+        for c in range(GRID_COLS):
+            px, py, pz = rgb_pixels[row_offset + c]
+            lum = lut[(77 * px + 150 * py + 29 * pz) >> 8]
+            if INVERT_LUMA:
+                lum = 255 - lum
+            glyph_idx = (lum * ramp_max + 127) >> 8
+            if glyph_idx > 0:
+                grid[r][c] = RAMP[glyph_idx]
+    return ["".join(row) for row in grid]
+
+
+def render_frame(t: float = 0.0) -> str:
+    """Assemble centered 30 FPS terminal frame with integrated particles."""
+    lut = build_contrast_lut(CONTRAST, BRIGHTNESS)
+    particles = init_particles(130)
+    step_particles(particles, t, 1.0 / TARGET_FPS)
+    timeline = load_media_frames(SOURCE_PATH)
+    _, active_pixels = timeline[int(t * TARGET_FPS) % max(1, len(timeline))]
+    ascii_rows = sample_ascii_buffer(active_pixels, lut, particles)
+    return "\\n".join(ascii_rows)
+
+
+if __name__ == "__main__":
+    print(render_frame(0.0))
+`;
   }
 
   function tokenizeCodeLine(line) {
@@ -2872,7 +3387,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   }
 
   function drawScrollingCodePane(targetCtx, x, y, w, h) {
-    const codeStr = getActiveSourceCode();
+    const codeStr = getActiveSourceCode().replace(/\r\n?/g, '\n').replace(/\t/g, '    ');
     const lines = codeStr.split('\n');
     const totalLines = Math.max(1, lines.length);
 
@@ -2901,7 +3416,8 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     targetCtx.lineTo(x + w, y + headerH + 0.5);
     targetCtx.stroke();
 
-    const fontPx = Math.max(10, Math.min(15, Math.round(Math.min(w * 0.017, h * 0.044))));
+    const fontScaleFactor = h > w ? 0.023 : 0.017;
+    const fontPx = Math.max(9, Math.min(15, Math.round(Math.min(w * fontScaleFactor, h * 0.044))));
     const lineH = Math.round(fontPx * 1.56);
     const bodyY = y + headerH + 6;
     const bodyH = Math.max(20, h - headerH - 10);
@@ -2911,42 +3427,34 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.codeTotalLines = totalLines;
     state.codeVisibleLines = visibleLines;
 
-    const gapLines = 3;
-    const loopSpan = totalLines + gapLines;
-    const maxManualScroll = Math.max(0, totalLines - visibleLines + 1);
+    // Include a 3-row breathing gap between EOF and line 01 during auto-scroll loop
+    const loopSpan = state.codeAutoScroll ? (totalLines + 3) : totalLines;
+    const focusOffset = Math.floor(visibleLines / 2);
+    const minManualScroll = -focusOffset;
+    const maxManualScroll = Math.max(minManualScroll, totalLines - 1 - focusOffset);
 
     let scrollPos;
     let activeLineIdx;
 
     if (state.codeAutoScroll) {
-      // Seamless continuous circular offset — never hits a wall or drags back to 0
       scrollPos = ((state.codeScrollPos % loopSpan) + loopSpan) % loopSpan;
       state.codeScrollPos = scrollPos;
-      const focusOffset = Math.min(2, Math.floor(visibleLines * 0.25));
-      const focusedVirtual = Math.floor(scrollPos + focusOffset) % loopSpan;
-      activeLineIdx = focusedVirtual < totalLines ? focusedVirtual : -1;
+      const rawCenterIdx = Math.floor(scrollPos + focusOffset) % loopSpan;
+      activeLineIdx = rawCenterIdx < totalLines ? rawCenterIdx : -1;
     } else {
-      // Bounded smooth manual scroll — stays exactly where you scroll it
-      scrollPos = Math.max(0, Math.min(maxManualScroll, state.codeScrollPos));
+      scrollPos = Math.max(minManualScroll, Math.min(maxManualScroll, state.codeScrollPos));
       state.codeScrollPos = scrollPos;
       activeLineIdx = state.selectedCodeLine >= 0 && state.selectedCodeLine < totalLines
         ? state.selectedCodeLine
-        : Math.min(totalLines - 1, Math.floor(scrollPos));
+        : Math.max(0, Math.min(totalLines - 1, Math.floor(scrollPos + focusOffset)));
     }
 
-    const fileLabel = state.customCodeText
-      ? 'custom_script.py'
-      : (state.sourceType === 'procedural' ? (PREMADE_META[state.proceduralId]?.file || `${state.proceduralId}_3d.py`) : 'render_media_ascii.py');
+    const itemLabel = state.sourceName || getActiveSourceFilename();
     targetCtx.font = `600 ${Math.max(9, fontPx - 1)}px "JetBrains Mono", monospace`;
     targetCtx.textBaseline = 'middle';
     targetCtx.textAlign = 'left';
-    targetCtx.fillStyle = '#10b981';
-    targetCtx.fillText(`● SRC // ${fileLabel}`, x + 12, y + headerH * 0.5 + 1);
-
-    const displayLineNum = activeLineIdx >= 0 ? activeLineIdx + 1 : totalLines;
-    targetCtx.textAlign = 'right';
     targetCtx.fillStyle = '#9ca3af';
-    targetCtx.fillText(`LN ${String(displayLineNum).padStart(2, '0')}/${String(totalLines).padStart(2, '0')}`, x + w - 14, y + headerH * 0.5 + 1);
+    targetCtx.fillText(itemLabel, x + 12, y + headerH * 0.5 + 1);
 
     targetCtx.beginPath();
     targetCtx.rect(x, y + headerH + 1, w, h - headerH - 1);
@@ -3012,9 +3520,10 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const denom = state.codeAutoScroll ? loopSpan : Math.max(1, totalLines);
     const thumbFrac = Math.min(1, Math.max(0.12, visibleLines / denom));
     const thumbH = Math.max(14, Math.round(trackH * thumbFrac));
+    const manualRange = Math.max(1, maxManualScroll - minManualScroll);
     const progressFrac = state.codeAutoScroll
       ? (scrollPos / Math.max(1, loopSpan))
-      : (maxManualScroll > 0 ? (scrollPos / maxManualScroll) : 0);
+      : ((scrollPos - minManualScroll) / manualRange);
     const thumbY = trackY + Math.round((trackH - thumbH) * Math.min(1, Math.max(0, progressFrac)));
     targetCtx.fillStyle = state.isUserDraggingCode ? '#10b981' : 'rgba(16, 185, 129, 0.55)';
     targetCtx.fillRect(trackX, thumbY, 3, thumbH);
@@ -3025,12 +3534,17 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   /* =========================================================================
    * 7. CORE ASCII RENDERING PIPELINE & TERMINAL HUD OVERLAY
    * ========================================================================= */
+  const CELL_ASPECT = 1.80;
+
   function getActiveRamp() {
+    let raw = RAMPS.detailed;
     if (state.charsetKey === 'custom') {
       const c = state.customCharset || ' .:-=+*#%@';
-      return c.length >= 2 ? c : ' .:-=+*#%@';
+      raw = c.length >= 2 ? c : ' .:-=+*#%@';
+    } else {
+      raw = RAMPS[state.charsetKey] || RAMPS.detailed;
     }
-    return RAMPS[state.charsetKey] || RAMPS.detailed;
+    return Array.from(raw);
   }
 
   function getSourceDimensions() {
@@ -3039,12 +3553,22 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     }
     if (state.sourceType === 'gif' && state.gifFrames.length > 0) {
       const f0 = state.gifFrames[0].source;
-      return { w: f0.width || PW, h: f0.height || PH };
+      return {
+        w: f0.displayWidth || f0.width || PW,
+        h: f0.displayHeight || f0.height || PH
+      };
     }
     if (state.sourceType === 'image' && state.loadedImage) {
       return { w: state.loadedImage.naturalWidth || PW, h: state.loadedImage.naturalHeight || PH };
     }
     return { w: PW, h: PH };
+  }
+
+  function computeGridDimensions(requestedCols, srcDim) {
+    const cols = Math.max(24, Math.min(240, requestedCols));
+    const srcAspect = Math.max(0.05, srcDim.w / Math.max(1, srcDim.h));
+    const rows = Math.max(8, Math.min(420, Math.round(cols / (srcAspect * CELL_ASPECT))));
+    return { cols, rows, srcAspect };
   }
 
   function getCurrentGifFrame() {
@@ -3070,15 +3594,17 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const asciiStageY = 0;
     const asciiStageH = Math.max(80, outH - codeH);
 
-    // 2. Ambient Snow / Starfield Particles
-    updateAndDrawParticles(targetCtx, outW, asciiStageH, dt, advanceSim);
+    targetCtx.save();
+    targetCtx.beginPath();
+    targetCtx.rect(0, asciiStageY, outW, asciiStageH);
+    targetCtx.clip();
 
-    // 3. Draw Active Source into Sampling Buffer
-    const cols = Math.max(24, Math.min(240, state.cols));
+    // 2. Integrated Background Particle Layer
+    updateAndDrawParticles(targetCtx, outW, asciiStageH, dt, advanceSim, 'bg');
+
+    // 3. Draw Active Source into Sampling Buffer (Exact Aspect Ratio Preserved)
     const srcDim = getSourceDimensions();
-    const charAspect = 0.54;
-    const srcAspect = srcDim.w / Math.max(1, srcDim.h);
-    const rows = Math.max(14, Math.min(180, Math.round((cols / srcAspect) * charAspect)));
+    const { cols, rows, srcAspect } = computeGridDimensions(state.cols, srcDim);
     state.gridCols = cols;
     state.gridRows = rows;
 
@@ -3087,6 +3613,8 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       sampleCanvas.height = rows;
     }
 
+    sampleCtx.imageSmoothingEnabled = true;
+    sampleCtx.imageSmoothingQuality = 'high';
     sampleCtx.fillStyle = '#000';
     sampleCtx.fillRect(0, 0, cols, rows);
 
@@ -3100,41 +3628,52 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       }
     } else if (state.sourceType === 'video' && sourceVideo.readyState >= 2) {
       sampleCtx.drawImage(sourceVideo, 0, 0, cols, rows);
+      if (state.sampledMediaPalette.length === 0) {
+        state.sampledMediaPalette = extractPaletteFromDrawable(sourceVideo);
+        if (state.sampledMediaPalette.length > 0) {
+          state.generatedMediaCode = buildGeneratedModelSource(state.sampledMediaPalette);
+        }
+      }
     } else if (state.sourceType === 'image' && state.loadedImage) {
       sampleCtx.drawImage(state.loadedImage, 0, 0, cols, rows);
     }
 
-    // 4. Fit-to-Viewport ASCII Grid Dimensions
+    const pixels = sampleCtx.getImageData(0, 0, cols, rows).data;
+
+    // 4. Exact Aspect-Ratio Fit + User Scale (Whole, X, Y) + Always Centered
     const minSide = Math.min(outW, asciiStageH);
     const pad = state.showHud ? Math.max(18, Math.min(44, Math.round(minSide * 0.065))) : 10;
     const availW = Math.max(60, outW - pad * 2);
     const availH = Math.max(60, asciiStageH - pad * 2);
 
-    const cellAspect = 1.82;
-    let cellW = Math.floor(availW / cols);
-    let cellH = Math.floor(cellW * cellAspect);
-    if (cellH * rows > availH) {
-      cellH = Math.max(4, Math.floor(availH / rows));
-      cellW = Math.max(2, Math.floor(cellH / cellAspect));
+    let targetW = availW;
+    let targetH = targetW / srcAspect;
+    if (targetH > availH) {
+      targetH = availH;
+      targetW = targetH * srcAspect;
     }
-    cellW = Math.max(2, cellW);
-    cellH = Math.max(4, cellH);
 
-    const gridW = cellW * cols;
-    const gridH = cellH * rows;
-    const startX = Math.floor((outW - gridW) * 0.5);
-    const startY = asciiStageY + Math.floor((asciiStageH - gridH) * 0.5);
+    const finalGridW = Math.max(24, targetW * state.scale * state.scaleX);
+    const finalGridH = Math.max(24, targetH * state.scale * state.scaleY);
+    const startX = (outW - finalGridW) * 0.5;
+    const startY = asciiStageY + (asciiStageH - finalGridH) * 0.5;
+
+    const stepX = finalGridW / cols;
+    const stepY = finalGridH / rows;
 
     // 5. Ensure Glyph Sprite Atlas Matches Current Ramp, Cell Size & Tint
+    const atlasCellW = Math.max(4, Math.min(48, Math.round(stepX)));
+    const atlasCellH = Math.max(6, Math.min(86, Math.round(stepY)));
     const ramp = getActiveRamp();
     const rampMax = ramp.length - 1;
-    ensureGlyphAtlas(ramp, cellW, cellH, state.tintColor);
+    ensureGlyphAtlas(ramp, atlasCellW, atlasCellH, state.tintColor);
 
-    // 6. Read Pixels & Blit Pre-Rendered Glyph Sprites (True-Color Ground-Up Build)
-    const pixels = sampleCtx.getImageData(0, 0, cols, rows).data;
     const mode = state.colorMode;
     const vib = state.vibrancy;
     const inv = state.invert;
+    const [tintR, tintG, tintB] = hexToRgb(state.tintColor);
+    const [buildR, buildG, buildB] = hexToRgb(state.buildColor || '#10b981');
+    const buildMixMode = state.buildColorMix || 'combine';
 
     const isBuilding = state.buildAnimEnabled && state.buildProgress < 1.0;
     let minActiveRow = 0;
@@ -3167,9 +3706,21 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const easedBuild = isBuilding ? (1 - Math.pow(1 - state.buildProgress, 1.35)) : 1.0;
     const activeSpan = Math.max(1, maxActiveRow - minActiveRow + 1);
     const horizonRow = isBuilding ? (maxActiveRow + 1 - easedBuild * (activeSpan + 1.5)) : -999;
-    const scrambleSeed = (state.simTime * 36) | 0;
+    const scrambleSeed = (state.simTime * 30) | 0;
+    const buildBandRows = 6.5;
 
-    targetCtx.imageSmoothingEnabled = false;
+    // Precompute exact column destination bounds to prevent subpixel gaps or squishing
+    const colDx = new Int32Array(cols);
+    const colDw = new Int32Array(cols);
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.round(startX + c * stepX);
+      const x1 = Math.round(startX + (c + 1) * stepX);
+      colDx[c] = x0;
+      colDw[c] = Math.max(1, x1 - x0);
+    }
+
+    targetCtx.imageSmoothingEnabled = true;
+    targetCtx.imageSmoothingQuality = 'high';
     let p = 0;
     let letterCount = 0;
 
@@ -3179,8 +3730,14 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         continue;
       }
       const distFromEdge = isBuilding ? (r - horizonRow) : 999;
-      const inBuildEdge = isBuilding && distFromEdge < 2.5;
-      const dy = startY + r * cellH;
+      const inBuildEdge = isBuilding && distFromEdge < 2.6;
+      const inBuildColorZone = isBuilding && distFromEdge < buildBandRows;
+      const edgeT = inBuildColorZone ? Math.max(0, Math.min(1, 1 - distFromEdge / buildBandRows)) : 0;
+      const whiteFactor = inBuildColorZone ? Math.pow(edgeT, 2.1) * 0.88 : 0;
+      const frontierBlend = inBuildColorZone ? Math.pow(edgeT, 0.85) : 0;
+
+      const dy = Math.round(startY + r * stepY);
+      const dh = Math.max(1, Math.round(startY + (r + 1) * stepY) - dy);
 
       for (let c = 0; c < cols; c++) {
         const rawR = pixels[p];
@@ -3203,10 +3760,56 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         if (ramp[charIdx] === ' ') continue;
         letterCount++;
 
-        const sx = charIdx * cellW;
-        const dx = startX + c * cellW;
+        const sx = charIdx * atlasCellW;
+        const dx = colDx[c];
+        const dw = colDw[c];
 
-        if (mode === 'rgb') {
+        if (inBuildColorZone) {
+          // Base generated color of the pixel in current mode
+          let genR, genG, genB;
+          if (mode === 'rgb') {
+            genR = Math.min(255, rawR * vib);
+            genG = Math.min(255, rawG * vib);
+            genB = Math.min(255, rawB * vib);
+          } else if (mode === 'tint') {
+            const tf = 0.16 + (lum / 255) * 0.84;
+            genR = tintR * tf;
+            genG = tintG * tf;
+            genB = tintB * tf;
+          } else {
+            const mv = 28 + (lum / 255) * 227;
+            genR = mv;
+            genG = mv;
+            genB = mv;
+          }
+
+          let mixR, mixG, mixB;
+          if (buildMixMode === 'build_white') {
+            // Mix chosen Build Color with White (#FFFFFF)
+            mixR = buildR + (255 - buildR) * whiteFactor;
+            mixG = buildG + (255 - buildG) * whiteFactor;
+            mixB = buildB + (255 - buildB) * whiteFactor;
+          } else if (buildMixMode === 'gen_white') {
+            // Mix generated pixel color with White (#FFFFFF)
+            mixR = genR + (255 - genR) * whiteFactor;
+            mixG = genG + (255 - genG) * whiteFactor;
+            mixB = genB + (255 - genB) * whiteFactor;
+          } else {
+            // Combine Generated Color + Chosen Build Color + White (#FFFFFF)
+            const combR = genR * 0.48 + buildR * 0.52;
+            const combG = genG * 0.48 + buildG * 0.52;
+            const combB = genB * 0.48 + buildB * 0.52;
+            mixR = combR + (255 - combR) * whiteFactor;
+            mixG = combG + (255 - combG) * whiteFactor;
+            mixB = combB + (255 - combB) * whiteFactor;
+          }
+
+          const outR = genR + (mixR - genR) * frontierBlend;
+          const outG = genG + (mixG - genG) * frontierBlend;
+          const outB = genB + (mixB - genB) * frontierBlend;
+          const strip = getRgbGlyphStrip(outR | 0, outG | 0, outB | 0);
+          targetCtx.drawImage(strip, sx, 0, atlasCellW, atlasCellH, dx, dy, dw, dh);
+        } else if (mode === 'rgb') {
           let cr = rawR * vib;
           let cg = rawG * vib;
           let cb = rawB * vib;
@@ -3214,20 +3817,25 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           if (cg > 255) cg = 255;
           if (cb > 255) cb = 255;
           const strip = getRgbGlyphStrip(cr | 0, cg | 0, cb | 0);
-          targetCtx.drawImage(strip, sx, 0, cellW, cellH, dx, dy, cellW, cellH);
+          targetCtx.drawImage(strip, sx, 0, atlasCellW, atlasCellH, dx, dy, dw, dh);
         } else {
           const shadeIdx = (lum * (SHADE_LEVELS - 1) + 127) >> 8;
           const strip = mode === 'tint'
             ? glyphEngine.tintStrips[shadeIdx]
             : glyphEngine.monoStrips[shadeIdx];
-          targetCtx.drawImage(strip, sx, 0, cellW, cellH, dx, dy, cellW, cellH);
+          targetCtx.drawImage(strip, sx, 0, atlasCellW, atlasCellH, dx, dy, dw, dh);
         }
       }
     }
 
     state.activeLetters = letterCount;
 
-    // 7. Terminal HUD Telemetry Overlay (index.html style)
+    // 6. Integrated Foreground Particle Layer (Woven into Video & ASCII Stage)
+    updateAndDrawParticles(targetCtx, outW, asciiStageH, dt, false, 'fg');
+
+    targetCtx.restore();
+
+    // 7. Terminal HUD Telemetry Overlay
     if (state.showHud && !state.cleanMode) {
       drawTerminalHud(targetCtx, outW, asciiStageH);
     }
@@ -3262,20 +3870,22 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     targetCtx.fillText(`t ${elapsed.toFixed(2).padStart(5, '0')}s`, w - margin, margin);
 
     const lineH = fontSize * 1.48;
+    const attrText = (state.attribution || '').trim();
     targetCtx.textAlign = 'left';
     targetCtx.textBaseline = 'bottom';
-    targetCtx.fillStyle = dimColor;
-    targetCtx.fillText(`@ascii.studio • 2026`, margin, h - margin - lineH * 3);
+    if (attrText) {
+      targetCtx.fillStyle = dimColor;
+      targetCtx.fillText(attrText, margin, h - margin - lineH * 2);
+    }
     targetCtx.fillStyle = hudColor;
-    targetCtx.fillText(`grid   ${state.gridCols}×${state.gridRows}`, margin, h - margin - lineH * 2);
-    targetCtx.fillText(`letters ${state.activeLetters.toLocaleString()}`, margin, h - margin - lineH);
-    targetCtx.fillStyle = dimColor;
-    targetCtx.fillText(`src ${state.sourceName}`, margin, h - margin);
+    targetCtx.fillText(`grid   ${state.gridCols}×${state.gridRows}`, margin, h - margin - lineH);
+    targetCtx.fillText(`letters ${state.activeLetters.toLocaleString()}`, margin, h - margin);
 
     targetCtx.textAlign = 'right';
     targetCtx.textBaseline = 'bottom';
-    targetCtx.fillStyle = state.isPlaying ? '#10b981' : '#f59e0b';
-    const statusText = state.isPlaying
+    const activeRunning = state.isPlaying || state.isExporting;
+    targetCtx.fillStyle = activeRunning ? '#10b981' : '#f59e0b';
+    const statusText = activeRunning
       ? `● running • ${Math.round(state.fpsSmoothed)} fps`
       : `❚❚ paused`;
     targetCtx.fillText(statusText, w - margin, h - margin);
@@ -3309,91 +3919,129 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       asciiCanvas.height = h;
       state.dirty = true;
     }
-    updateGridBadge();
   }
 
   function updateGridBadge() {
-    const cols = state.cols;
     const srcDim = getSourceDimensions();
-    const rows = Math.max(14, Math.min(180, Math.round((cols / (srcDim.w / Math.max(1, srcDim.h))) * 0.54)));
+    const { cols, rows } = computeGridDimensions(state.cols, srcDim);
     state.gridCols = cols;
     state.gridRows = rows;
-    gridBadge.textContent = `${cols} × ${rows}`;
+    if (gridBadge) {
+      gridBadge.textContent = `${cols} × ${rows}`;
+    }
   }
 
-  if (typeof ResizeObserver !== 'undefined') {
-    const viewportObserver = new ResizeObserver(() => {
-      syncPreviewCanvasResolution();
-    });
-    viewportObserver.observe(canvasViewportEl);
-  }
   window.addEventListener('resize', syncPreviewCanvasResolution);
-  window.addEventListener('orientationchange', () => setTimeout(syncPreviewCanvasResolution, 120));
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => syncPreviewCanvasResolution()).observe(canvasViewportEl);
+  }
   syncPreviewCanvasResolution();
 
+  const TARGET_FPS = 30;
+  const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
   let lastFrameTime = performance.now();
+  let lastSourceVideoTime = 0;
+
+  function getEffectiveBuildDuration() {
+    return Math.min(state.buildDuration, Math.max(0.35, state.videoDuration * 0.92));
+  }
+
   function mainLoop(now) {
-    const rawDt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
-    lastFrameTime = now;
-
-    if (rawDt > 0) {
-      const instFps = 1 / rawDt;
-      state.fpsSmoothed = state.fpsSmoothed * 0.9 + instFps * 0.1;
-    }
-
-    if (!state.isExporting) {
-      if (state.isPlaying) {
-        state.simTime += rawDt;
-        state.mediaElapsed += rawDt;
-        if (state.sourceType === 'gif' && state.gifDuration > 0) {
-          state.gifTime = (state.gifTime + rawDt) % state.gifDuration;
-        }
-        if (state.mediaElapsed >= state.videoDuration) {
-          restartPlaybackFromStart(true, false);
-        }
-      }
-
-      // Smooth continuous code scrolling + touch/wheel momentum inertia (never drags back)
-      if (state.showCodePane) {
-        if (!state.isUserDraggingCode) {
-          if (Math.abs(state.codeScrollVelocity) > 0.002) {
-            state.codeScrollPos += state.codeScrollVelocity * rawDt;
-            state.codeScrollVelocity *= Math.exp(-rawDt * 8.0);
-            state.dirty = true;
-          } else {
-            state.codeScrollVelocity = 0;
-          }
-
-          if (state.isPlaying && state.codeAutoScroll) {
-            const linesPerSec = 2.4 * state.codeScrollSpeed;
-            state.codeScrollPos += linesPerSec * rawDt;
-            state.dirty = true;
-          }
-        }
-      }
-
-      const isBuilding = state.buildAnimEnabled && state.buildProgress < 1.0;
-      if (isBuilding && state.isPlaying) {
-        state.buildProgress = Math.min(1.0, state.buildProgress + rawDt / state.buildDuration);
-        state.dirty = true;
-      }
-
-      if (state.isPlaying && state.sourceType === 'video' && sourceVideo.readyState >= 2 && sourceVideo.paused && !sourceVideo.ended) {
-        sourceVideo.play().catch(() => {});
-      }
-
-      const shouldAnimate =
-        (state.isPlaying && (state.sourceType === 'procedural' || state.sourceType === 'video' || state.sourceType === 'gif' || state.particles || (state.showCodePane && state.codeAutoScroll))) ||
-        Math.abs(state.codeScrollVelocity) > 0.002;
-
-      if (shouldAnimate || state.dirty) {
-        renderAsciiFrame(ctx, asciiCanvas.width, asciiCanvas.height, rawDt, state.isPlaying);
-        state.dirty = false;
-        updateTimelineUI();
-      }
-    }
-
     requestAnimationFrame(mainLoop);
+
+    const elapsedMs = now - lastFrameTime;
+
+    if (state.isExporting) {
+      lastFrameTime = now;
+      return;
+    }
+
+    const shouldAnimate =
+      (state.isPlaying && (state.sourceType === 'procedural' || state.sourceType === 'video' || state.sourceType === 'gif' || state.particles || (state.showCodePane && state.codeAutoScroll))) ||
+      Math.abs(state.codeScrollVelocity) > 0.002;
+
+    if (!shouldAnimate && !state.dirty) {
+      lastFrameTime = now;
+      return;
+    }
+
+    // Pace continuous animation smoothly at 30 FPS while allowing instant UI updates when state.dirty is true
+    if (!state.dirty && elapsedMs < FRAME_INTERVAL_MS - 0.5) {
+      return;
+    }
+
+    const rawDt = state.dirty && elapsedMs < FRAME_INTERVAL_MS * 0.5
+      ? Math.max(0, elapsedMs / 1000)
+      : Math.min(0.1, Math.max(1 / TARGET_FPS, elapsedMs / 1000));
+
+    lastFrameTime = state.dirty
+      ? now
+      : now - (elapsedMs % FRAME_INTERVAL_MS);
+
+    if (rawDt > 0.004) {
+      const instFps = Math.min(TARGET_FPS, 1 / rawDt);
+      state.fpsSmoothed = state.fpsSmoothed * 0.85 + instFps * 0.15;
+    }
+
+    if (state.isPlaying && rawDt > 0) {
+      state.simTime += rawDt;
+      state.mediaElapsed += rawDt;
+      if (state.sourceType === 'gif' && state.gifDuration > 0) {
+        state.gifTime = (state.gifTime + rawDt) % state.gifDuration;
+      }
+      if (state.sourceType === 'video' && sourceVideo.readyState >= 2) {
+        const curVidTime = sourceVideo.currentTime || 0;
+        if (lastSourceVideoTime > 0.35 && curVidTime < lastSourceVideoTime - 0.25) {
+          state.codeScrollPos = 0;
+          state.codeScrollVelocity = 0;
+          state.selectedCodeLine = -1;
+        }
+        lastSourceVideoTime = curVidTime;
+      }
+      if (state.mediaElapsed >= state.videoDuration) {
+        restartPlaybackFromStart(true, true);
+      }
+    }
+
+    if (state.showCodePane && rawDt > 0) {
+      if (!state.isUserDraggingCode) {
+        if (Math.abs(state.codeScrollVelocity) > 0.002) {
+          state.codeScrollPos += state.codeScrollVelocity * rawDt;
+          state.codeScrollVelocity *= Math.exp(-rawDt * 8.0);
+          state.dirty = true;
+        } else {
+          state.codeScrollVelocity = 0;
+        }
+
+        if (state.isPlaying && state.codeAutoScroll) {
+          const linesPerSec = 2.4 * state.codeScrollSpeed;
+          state.codeScrollPos += linesPerSec * rawDt;
+          state.dirty = true;
+        }
+      }
+    }
+
+    const isBuilding = state.buildAnimEnabled && state.buildProgress < 1.0;
+    if (isBuilding && state.isPlaying && rawDt > 0) {
+      const effBuildDur = getEffectiveBuildDuration();
+      state.buildProgress = Math.min(1.0, state.buildProgress + rawDt / effBuildDur);
+      state.dirty = true;
+    }
+
+    if (state.isPlaying && state.sourceType === 'video' && sourceVideo.readyState >= 2 && sourceVideo.paused && !sourceVideo.ended) {
+      sourceVideo.play().catch(() => {});
+    }
+
+    try {
+      renderAsciiFrame(ctx, asciiCanvas.width, asciiCanvas.height, rawDt, state.isPlaying);
+      state.dirty = false;
+      updateTimelineUI();
+    } catch (renderError) {
+      console.error('ASCII Studio preview render failed:', renderError);
+      state.dirty = true;
+      ctx.fillStyle = state.bgColor || '#000';
+      ctx.fillRect(0, 0, asciiCanvas.width, asciiCanvas.height);
+    }
   }
   requestAnimationFrame(mainLoop);
 
@@ -3419,20 +4067,18 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   function syncPremadeDropdown(activeId) {
     const sel = document.getElementById('premadeSelect');
     if (!sel) return;
-    if (activeId) {
-      sel.value = activeId;
-    } else {
-      sel.value = 'uploaded';
-    }
+    sel.value = activeId || 'uploaded';
   }
 
   function restartPlaybackFromStart(resetBuild = true, resetCodeScroll = true) {
     state.mediaElapsed = 0;
     state.simTime = 0;
     state.gifTime = 0;
+    lastSourceVideoTime = 0;
     if (resetCodeScroll) {
       state.codeScrollPos = 0;
       state.codeScrollVelocity = 0;
+      state.selectedCodeLine = -1;
     }
     if (resetBuild) {
       state.buildProgress = state.buildAnimEnabled ? 0 : 1.0;
@@ -3441,6 +4087,9 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       try {
         sourceVideo.playbackRate = 1.0;
         sourceVideo.currentTime = 0;
+        if (state.isPlaying && sourceVideo.paused) {
+          sourceVideo.play().catch(() => {});
+        }
       } catch (e) {}
     }
     state.dirty = true;
@@ -3448,7 +4097,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   }
 
   function triggerBuildAnimation() {
-    restartPlaybackFromStart(true);
+    restartPlaybackFromStart(true, true);
   }
 
   function setColorMode(mode) {
@@ -3458,17 +4107,35 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     });
     vibrancyGroup.style.display = mode === 'rgb' ? 'flex' : 'none';
     tintGroup.style.display = mode === 'tint' ? 'flex' : 'none';
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
+  }
+
+  function disposeGifFrames() {
+    if (!state.gifFrames || state.gifFrames.length === 0) return;
+    for (let i = 0; i < state.gifFrames.length; i++) {
+      const src = state.gifFrames[i].source;
+      if (src && typeof src.close === 'function') {
+        try { src.close(); } catch (e) {}
+      }
+    }
+    state.gifFrames = [];
+    state.gifDuration = 0;
+    state.gifTime = 0;
   }
 
   function loadProceduralSample(id) {
     const meta = PREMADE_META[id] || PREMADE_META.snowman;
+    disposeGifFrames();
     state.sourceType = 'procedural';
+    state.generatedMediaCode = '';
+    state.sampledMediaPalette = [];
     state.proceduralId = id;
     state.sourceName = meta.file;
     sourceVideo.pause();
-    sourceBadge.textContent = `py ${state.sourceName}`;
-    document.getElementById('codePaneFileTag').textContent = state.customCodeText ? 'custom_script.py' : state.sourceName;
+    document.getElementById('codePaneFileTag').textContent = getActiveSourceFilename();
     if (meta.mode) {
       setColorMode(meta.mode);
     }
@@ -3490,7 +4157,9 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         for (let i = 0; i < count; i++) {
           const result = await decoder.decode({ frameIndex: i });
           const frame = result.image;
-          const delaySec = Math.max(0.02, (frame.duration || 80000) / 1000000);
+          const rawUs = frame.duration || 100000;
+          const normUs = rawUs < 20000 ? 100000 : rawUs;
+          const delaySec = Math.max(0.02, normUs / 1000000);
           cumTime += delaySec;
           frames.push({ source: frame, delay: delaySec, endTime: cumTime });
         }
@@ -3529,7 +4198,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const patchCanvas = document.createElement('canvas');
     const patchCtx = patchCanvas.getContext('2d');
 
-    let gceDelay = 0.08;
+    let gceDelay = 0.10;
     let gceDisposal = 0;
     let gceTransparentIdx = -1;
 
@@ -3612,7 +4281,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           gceDisposal = (gPacked >> 2) & 0x07;
           const hasTrans = (gPacked & 0x01) !== 0;
           const delayCs = bytes[pos + 1] | (bytes[pos + 2] << 8);
-          gceDelay = Math.max(0.02, delayCs / 100);
+          gceDelay = Math.max(0.02, (delayCs <= 1 ? 10 : delayCs) / 100);
           gceTransparentIdx = hasTrans ? bytes[pos + 3] : -1;
           pos += blockSize;
           if (bytes[pos] === 0x00) pos++;
@@ -3720,7 +4389,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           compCtx.putImageData(prevSnap, 0, 0);
         }
 
-        gceDelay = 0.08;
+        gceDelay = 0.10;
         gceDisposal = 0;
         gceTransparentIdx = -1;
       } else {
@@ -3737,17 +4406,42 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       URL.revokeObjectURL(state.currentMediaUrl);
       state.currentMediaUrl = null;
     }
-    state.gifFrames = [];
-    state.gifDuration = 0;
-    state.gifTime = 0;
+    disposeGifFrames();
+    state.loadedImage = null;
+    sourceVideo.pause();
+    sourceVideo.removeAttribute('src');
     state.mediaElapsed = 0;
+    lastSourceVideoTime = 0;
     state.codeScrollPos = 0;
     state.codeScrollVelocity = 0;
+    state.selectedCodeLine = -1;
+    state.customCodeText = '';
+    state.generatedMediaCode = '';
+    state.sampledMediaPalette = [];
+    state.mediaRenderError = '';
 
-    state.sourceName = file.name;
-    sourceBadge.textContent = file.name;
-    document.getElementById('codePaneFileTag').textContent = state.customCodeText ? 'custom_script.py' : 'render_media_ascii.py';
+    state.rawMediaName = file.name;
+    const mediaStem = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 42) || 'uploaded_media';
+    const pyFilename = `${mediaStem}.py`;
+    state.sourceName = pyFilename;
+    state.generatedMediaFilename = pyFilename;
+    document.getElementById('codePaneFileTag').textContent = pyFilename;
     syncPremadeDropdown(null);
+
+    // Default to full-color natural RGB on uploaded media so colors look crisp and accurate
+    state.vibrancy = 1.0;
+    vibrancySlider.value = '100';
+    document.getElementById('vibrancyVal').textContent = '100%';
+    setColorMode('rgb');
+
+    // Automatically open Live Scrolling Developer Code Pane on media import
+    state.codeAutoScroll = true;
+    codeAutoScrollToggle.checked = true;
+    setCodePaneVisible(true);
+
+    if (window.innerWidth <= 680) {
+      setSidebarCollapsed(true);
+    }
 
     const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
 
@@ -3762,7 +4456,12 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           state.gifDuration = decoded.duration;
           state.gifTime = 0;
           state.sourceType = 'gif';
+          if (decoded.duration > 0) {
+            setVideoDuration(decoded.duration, false);
+          }
           updateGridBadge();
+          state.sampledMediaPalette = extractPaletteFromDrawable(decoded.frames[0].source);
+          state.generatedMediaCode = buildGeneratedModelSource(state.sampledMediaPalette);
           triggerBuildAnimation();
           setPlayState(true);
           hideToast();
@@ -3771,13 +4470,15 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           state.loadedImage = decoded.frames[0].source;
           state.sourceType = 'image';
           updateGridBadge();
+          state.sampledMediaPalette = extractPaletteFromDrawable(decoded.frames[0].source);
+          state.generatedMediaCode = buildGeneratedModelSource(state.sampledMediaPalette);
           triggerBuildAnimation();
           setPlayState(true);
           hideToast();
           return;
         }
       } catch (err) {
-        // Fallback to static image below if malformed GIF
+        // Fallback to static image below
       }
       hideToast();
     }
@@ -3785,7 +4486,6 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const url = URL.createObjectURL(file);
     state.currentMediaUrl = url;
 
-    // Standard iOS (.mov, .mp4, .m4v) & Android (.mp4, .webm, .3gp, .mkv) video formats
     const isVideo =
       (file.type && file.type.startsWith('video/')) ||
       /\.(mp4|mov|m4v|webm|3gp|3g2|mkv)$/i.test(file.name);
@@ -3799,8 +4499,13 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         sourceVideo.loop = true;
         sourceVideo.muted = true;
         sourceVideo.playbackRate = 1.0;
+        if (Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0) {
+          setVideoDuration(sourceVideo.duration, false);
+        }
         updateGridBadge();
-        restartPlaybackFromStart(true);
+        state.sampledMediaPalette = extractPaletteFromDrawable(sourceVideo);
+        state.generatedMediaCode = buildGeneratedModelSource(state.sampledMediaPalette);
+        restartPlaybackFromStart(true, true);
         setPlayState(true);
         sourceVideo.play().catch(() => {});
       };
@@ -3830,8 +4535,14 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         state.loadedImage = img;
         state.sourceType = 'image';
         updateGridBadge();
+        state.sampledMediaPalette = extractPaletteFromDrawable(img);
+        state.generatedMediaCode = buildGeneratedModelSource(state.sampledMediaPalette);
         triggerBuildAnimation();
         setPlayState(true);
+      };
+      img.onerror = () => {
+        showToast('Could not decode image format in this browser', 100);
+        hideToast();
       };
       img.src = url;
     }
@@ -3849,6 +4560,11 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     sidebar.classList.toggle('collapsed', collapsed);
     expandSidebarBtn.style.display = collapsed ? 'inline-flex' : 'none';
     setTimeout(syncPreviewCanvasResolution, 240);
+  }
+
+  // Start collapsed on narrow mobile screens so preview canvas is immediately visible
+  if (window.innerWidth <= 680) {
+    setSidebarCollapsed(true);
   }
 
   document.getElementById('collapseSidebarBtn').addEventListener('click', () => {
@@ -3943,12 +4659,58 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   // Ground-Up Build Animation Controls
   const buildAnimToggle = document.getElementById('buildAnimToggle');
   const buildControlsRow = document.getElementById('buildControlsRow');
+  const buildColorGroup = document.getElementById('buildColorGroup');
+  const buildMixGroup = document.getElementById('buildMixGroup');
   const replayBuildBtn = document.getElementById('replayBuildBtn');
   const buildSpeedSelect = document.getElementById('buildSpeedSelect');
+  const buildColorPicker = document.getElementById('buildColorPicker');
+  const buildColorHexLabel = document.getElementById('buildColorHexLabel');
+
+  function applyBuildColor(hex) {
+    state.buildColor = hex;
+    buildColorPicker.value = hex;
+    buildColorHexLabel.textContent = hex.toUpperCase();
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
+    if (state.buildAnimEnabled && state.buildProgress >= 1.0) {
+      triggerBuildAnimation();
+    } else {
+      state.dirty = true;
+    }
+  }
+
+  buildColorPicker.addEventListener('input', () => applyBuildColor(buildColorPicker.value));
+  document.querySelectorAll('.swatch[data-bswatch]').forEach(sw => {
+    sw.addEventListener('click', () => applyBuildColor(sw.dataset.bswatch));
+  });
+
+  document.querySelectorAll('#buildMixModeGroup .seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#buildMixModeGroup .seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.buildColorMix = btn.dataset.bmix;
+      if (state.sourceType !== 'procedural' && !state.customCodeText) {
+        state.generatedMediaCode = buildGeneratedModelSource();
+      }
+      if (state.buildAnimEnabled && state.buildProgress >= 1.0) {
+        triggerBuildAnimation();
+      } else {
+        state.dirty = true;
+      }
+    });
+  });
 
   buildAnimToggle.addEventListener('change', () => {
     state.buildAnimEnabled = buildAnimToggle.checked;
-    buildControlsRow.style.opacity = state.buildAnimEnabled ? '1' : '0.45';
+    const op = state.buildAnimEnabled ? '1' : '0.45';
+    const pe = state.buildAnimEnabled ? 'auto' : 'none';
+    buildControlsRow.style.opacity = op;
+    buildColorGroup.style.opacity = op;
+    buildMixGroup.style.opacity = op;
+    buildColorGroup.style.pointerEvents = pe;
+    buildMixGroup.style.pointerEvents = pe;
+    buildColorPicker.disabled = !state.buildAnimEnabled;
     replayBuildBtn.disabled = !state.buildAnimEnabled;
     buildSpeedSelect.disabled = !state.buildAnimEnabled;
     if (state.buildAnimEnabled) {
@@ -4020,6 +4782,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     if (visible) {
       state.codeScrollPos = 0;
       state.codeScrollVelocity = 0;
+      state.selectedCodeLine = -1;
     }
     state.dirty = true;
   }
@@ -4060,6 +4823,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const lineH = Math.max(10, state.codeLineHeight || 18);
     const deltaLines = (e.deltaY * pt.scaleY) / lineH;
     state.codeScrollPos += deltaLines;
+    state.selectedCodeLine = -1;
     state.codeScrollVelocity = deltaLines * 4.5;
     state.dirty = true;
   }, { passive: false });
@@ -4093,6 +4857,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       const lineH = Math.max(10, state.codeLineHeight || 18);
       const deltaLines = -dy / lineH;
       state.codeScrollPos += deltaLines;
+      state.selectedCodeLine = -1;
       state.codeScrollVelocity = (deltaLines / dt) * 0.45;
       codeDragLastY = pt.y;
       codeDragLastTime = now;
@@ -4105,14 +4870,15 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   function endCodePointerDrag(e) {
     if (codeDragPointerId !== e.pointerId) return;
     const pt = getCanvasCoordsFromEvent(e);
-    // Single tap/click selects that line when auto-scroll is paused
     if (!codeDragMoved && pt && state.codePaneRect) {
       const headerH = Math.max(24, Math.min(34, Math.round(state.codePaneRect.h * 0.11)));
       const bodyTop = state.codePaneRect.y + headerH + 6;
       const lineH = Math.max(10, state.codeLineHeight || 18);
+      const focusOffset = Math.floor(Math.max(1, state.codeVisibleLines) / 2);
       const clickedRow = Math.floor(state.codeScrollPos + (pt.y - bodyTop) / lineH);
       if (clickedRow >= 0 && clickedRow < state.codeTotalLines) {
         state.selectedCodeLine = clickedRow;
+        state.codeScrollPos = clickedRow - focusOffset;
       }
     }
     codeDragPointerId = null;
@@ -4157,7 +4923,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       showToast('Code copied!', 100);
     }
     document.body.removeChild(ta);
-    setTimeout(hideToast, 1100);
+    hideToast();
   });
 
   openPasteModalBtn.addEventListener('click', openCodeEditorModal);
@@ -4179,27 +4945,29 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     } catch (err) {}
     codeModalTextarea.focus();
     showToast('Press Ctrl+V / Cmd+V in box to paste', 100);
-    setTimeout(hideToast, 1400);
+    hideToast();
   });
 
   document.getElementById('resetCodeBtn').addEventListener('click', () => {
     state.customCodeText = '';
     codeModalTextarea.value = getActiveSourceCode();
-    document.getElementById('codePaneFileTag').textContent = state.sourceType === 'procedural' ? (PREMADE_META[state.proceduralId]?.file || `${state.proceduralId}_3d.py`) : 'render_media_ascii.py';
+    document.getElementById('codePaneFileTag').textContent = getActiveSourceFilename();
     state.codeScrollPos = 0;
     state.codeScrollVelocity = 0;
+    state.selectedCodeLine = -1;
     state.dirty = true;
   });
 
   document.getElementById('applyCodeBtn').addEventListener('click', () => {
     state.customCodeText = codeModalTextarea.value;
-    document.getElementById('codePaneFileTag').textContent = state.customCodeText.trim() ? 'custom_script.py' : (state.sourceType === 'procedural' ? (PREMADE_META[state.proceduralId]?.file || `${state.proceduralId}_3d.py`) : 'render_media_ascii.py');
+    document.getElementById('codePaneFileTag').textContent = getActiveSourceFilename();
     state.codeScrollPos = 0;
     state.codeScrollVelocity = 0;
+    state.selectedCodeLine = -1;
     setCodePaneVisible(true);
     closeCodeEditorModal();
     showToast('Code loaded into scrolling viewer!', 100);
-    setTimeout(hideToast, 1100);
+    hideToast();
   });
 
   // Direct Ctrl+V / Cmd+V paste anywhere outside inputs to load code into scrolling viewer
@@ -4212,9 +4980,10 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
       document.getElementById('codePaneFileTag').textContent = 'custom_script.py';
       state.codeScrollPos = 0;
       state.codeScrollVelocity = 0;
+      state.selectedCodeLine = -1;
       setCodePaneVisible(true);
       showToast('Pasted code into live viewer!', 100);
-      setTimeout(hideToast, 1200);
+      hideToast();
     }
   });
 
@@ -4243,7 +5012,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.dirty = true;
   }
   tintPicker.addEventListener('input', () => applyTint(tintPicker.value));
-  document.querySelectorAll('.swatch').forEach(sw => {
+  document.querySelectorAll('.swatch[data-tint]').forEach(sw => {
     sw.addEventListener('click', () => applyTint(sw.dataset.tint));
   });
 
@@ -4254,8 +5023,39 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.dirty = true;
   });
 
+  const particleColorGroup = document.getElementById('particleColorGroup');
+  const particleColorPicker = document.getElementById('particleColorPicker');
+  const particleHexLabel = document.getElementById('particleHexLabel');
+  function applyParticleColor(hex) {
+    state.particleColor = hex;
+    particleColorPicker.value = hex;
+    particleHexLabel.textContent = hex.toUpperCase();
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
+    state.dirty = true;
+  }
+  particleColorPicker.addEventListener('input', () => applyParticleColor(particleColorPicker.value));
+  document.querySelectorAll('.swatch[data-pswatch]').forEach(sw => {
+    sw.addEventListener('click', () => applyParticleColor(sw.dataset.pswatch));
+  });
+
   document.getElementById('particlesToggle').addEventListener('change', (e) => {
     state.particles = e.target.checked;
+    particleColorGroup.style.display = state.particles ? 'flex' : 'none';
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
+    state.dirty = true;
+  });
+
+  const attributionInput = document.getElementById('attributionInput');
+  attributionInput.addEventListener('input', () => {
+    state.attribution = attributionInput.value;
+    attributionBadge.textContent = state.attribution.trim() || '30 FPS AUTO';
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
@@ -4264,7 +5064,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.dirty = true;
   });
 
-  // Clean Background Mode & Fullscreen
+  // Clean Background Mode
   const stageWrapper = document.getElementById('stageWrapper');
   const cleanModeToggle = document.getElementById('cleanModeToggle');
   function setCleanMode(enabled) {
@@ -4279,46 +5079,63 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   }
   cleanModeToggle.addEventListener('change', () => setCleanMode(cleanModeToggle.checked));
 
-  async function toggleFullscreen() {
-    const isNativeFs = !!document.fullscreenElement;
-    const isPseudoFs = stageWrapper.classList.contains('pseudo-fullscreen');
-    if (!isNativeFs && !isPseudoFs) {
-      stageWrapper.classList.add('pseudo-fullscreen');
-      try {
-        if (stageWrapper.requestFullscreen) await stageWrapper.requestFullscreen();
-      } catch (err) {}
-    } else {
-      stageWrapper.classList.remove('pseudo-fullscreen');
-      try {
-        if (document.fullscreenElement) await document.exitFullscreen();
-      } catch (err) {}
-    }
-    setTimeout(syncPreviewCanvasResolution, 80);
-  }
-  const fullscreenBtnEl = document.getElementById('fullscreenBtn');
-  if (fullscreenBtnEl) fullscreenBtnEl.addEventListener('click', toggleFullscreen);
   document.getElementById('exitCleanBtn').addEventListener('click', () => {
     setCleanMode(false);
-    stageWrapper.classList.remove('pseudo-fullscreen');
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    sidebar.classList.remove('collapsed');
-    expandSidebarBtn.style.display = 'none';
+    if (window.innerWidth > 680) {
+      sidebar.classList.remove('collapsed');
+      expandSidebarBtn.style.display = 'none';
+    }
     setTimeout(syncPreviewCanvasResolution, 80);
   });
 
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-      stageWrapper.classList.remove('pseudo-fullscreen');
-      setTimeout(syncPreviewCanvasResolution, 80);
+  // Scale (Whole, X, Y) & Grid Shading Sliders
+  const scaleSlider = document.getElementById('scaleSlider');
+  const scaleXSlider = document.getElementById('scaleXSlider');
+  const scaleYSlider = document.getElementById('scaleYSlider');
+
+  function syncScaleUI() {
+    scaleSlider.value = String(Math.round(state.scale * 100));
+    scaleXSlider.value = String(Math.round(state.scaleX * 100));
+    scaleYSlider.value = String(Math.round(state.scaleY * 100));
+    document.getElementById('scaleVal').textContent = `${Math.round(state.scale * 100)}%`;
+    document.getElementById('scaleXVal').textContent = `${Math.round(state.scaleX * 100)}%`;
+    document.getElementById('scaleYVal').textContent = `${Math.round(state.scaleY * 100)}%`;
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
     }
+    state.dirty = true;
+  }
+
+  scaleSlider.addEventListener('input', () => {
+    state.scale = Math.max(0.25, Math.min(2.5, parseInt(scaleSlider.value, 10) / 100));
+    syncScaleUI();
   });
 
-  // Grid & Shading Sliders
+  scaleXSlider.addEventListener('input', () => {
+    state.scaleX = Math.max(0.25, Math.min(2.5, parseInt(scaleXSlider.value, 10) / 100));
+    syncScaleUI();
+  });
+
+  scaleYSlider.addEventListener('input', () => {
+    state.scaleY = Math.max(0.25, Math.min(2.5, parseInt(scaleYSlider.value, 10) / 100));
+    syncScaleUI();
+  });
+
+  document.getElementById('resetScaleBtn').addEventListener('click', () => {
+    state.scale = 1.0;
+    state.scaleX = 1.0;
+    state.scaleY = 1.0;
+    syncScaleUI();
+  });
+
   const densitySlider = document.getElementById('densitySlider');
   densitySlider.addEventListener('input', () => {
     state.cols = parseInt(densitySlider.value, 10);
     document.getElementById('densityVal').textContent = state.cols;
     updateGridBadge();
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
@@ -4327,6 +5144,9 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.contrast = parseInt(contrastSlider.value, 10);
     document.getElementById('contrastVal').textContent = (state.contrast >= 0 ? '+' : '') + state.contrast;
     updateContrastBrightnessLut();
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
@@ -4335,6 +5155,9 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.brightness = parseInt(brightnessSlider.value, 10);
     document.getElementById('brightnessVal').textContent = (state.brightness >= 0 ? '+' : '') + state.brightness;
     updateContrastBrightnessLut();
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
@@ -4343,17 +5166,26 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   charsetSelect.addEventListener('change', () => {
     state.charsetKey = charsetSelect.value;
     customCharsetGroup.style.display = state.charsetKey === 'custom' ? 'flex' : 'none';
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
   const customCharsetInput = document.getElementById('customCharsetInput');
   customCharsetInput.addEventListener('input', () => {
     state.customCharset = customCharsetInput.value;
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
   document.getElementById('invertToggle').addEventListener('change', (e) => {
     state.invert = e.target.checked;
+    if (state.sourceType !== 'procedural' && !state.customCodeText) {
+      state.generatedMediaCode = buildGeneratedModelSource();
+    }
     state.dirty = true;
   });
 
@@ -4362,55 +5194,80 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     setPlayState(!state.isPlaying);
   });
 
+  timeReadout.style.cursor = 'pointer';
+  timeReadout.title = 'Click to reset counter & rebuild model (R)';
+  timeReadout.addEventListener('click', () => {
+    restartPlaybackFromStart(true, true);
+  });
+
   timelineScrubber.addEventListener('input', () => {
-    const frac = parseInt(timelineScrubber.value, 10) / 1000;
-    const dur = Math.max(1, state.videoDuration);
-    const targetT = frac * dur;
-    state.mediaElapsed = targetT;
-    if (state.codeAutoScroll) {
-      state.codeScrollPos = targetT * 2.4 * state.codeScrollSpeed;
+    const frac = Math.max(0, Math.min(1, parseInt(timelineScrubber.value, 10) / 1000));
+    const targetTime = frac * state.videoDuration;
+    state.mediaElapsed = targetTime;
+    state.simTime = targetTime;
+    if (state.sourceType === 'gif' && state.gifDuration > 0) {
+      state.gifTime = targetTime % state.gifDuration;
+    } else if (state.sourceType === 'video' && sourceVideo.readyState >= 1) {
+      try {
+        const nextVidTime = targetTime % Math.max(0.1, sourceVideo.duration || state.videoDuration);
+        sourceVideo.currentTime = nextVidTime;
+        lastSourceVideoTime = nextVidTime;
+      } catch (e) {}
+    }
+    if (frac <= 0.001 || frac >= 0.999) {
+      state.codeScrollPos = 0;
+      state.codeScrollVelocity = 0;
+      state.selectedCodeLine = -1;
+    } else if (state.codeAutoScroll) {
+      const vidDur = (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0)
+        ? sourceVideo.duration
+        : state.videoDuration;
+      const codeTime = vidDur > 0 ? (targetTime % vidDur) : targetTime;
+      state.codeScrollPos = codeTime * 2.4 * state.codeScrollSpeed;
+      state.codeScrollVelocity = 0;
     }
     if (state.buildAnimEnabled) {
-      state.buildProgress = Math.min(1.0, targetT / Math.max(0.1, state.buildDuration));
-    }
-    if (state.sourceType === 'procedural') {
-      state.simTime = targetT;
-    } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
-      state.gifTime = targetT % state.gifDuration;
-    } else if (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0) {
-      sourceVideo.currentTime = targetT % sourceVideo.duration;
+      const effBuildDur = getEffectiveBuildDuration();
+      state.buildProgress = Math.min(1.0, targetTime / Math.max(0.1, effBuildDur));
     }
     state.dirty = true;
     updateTimelineUI();
   });
 
+  // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Space') {
       e.preventDefault();
       setPlayState(!state.isPlaying);
-    } else if (e.key === 'f' || e.key === 'F') {
-      toggleFullscreen();
     } else if (e.key === 'b' || e.key === 'B') {
       if (state.buildAnimEnabled) triggerBuildAnimation();
+    } else if (e.key === 'r' || e.key === 'R') {
+      restartPlaybackFromStart(true, true);
     } else if (e.key === 'c' || e.key === 'C') {
       setCodePaneVisible(!state.showCodePane);
     } else if (e.key === 'Escape' && codeEditorModal.classList.contains('open')) {
       closeCodeEditorModal();
-    } else if (e.key === 'Escape' && (state.cleanMode || stageWrapper.classList.contains('pseudo-fullscreen'))) {
+    } else if (e.key === 'Escape' && state.cleanMode) {
       document.getElementById('exitCleanBtn').click();
     }
   });
 
   /* =========================================================================
-   * 10. CLIENT-SIDE EXPORTERS (PNG, 16:9 & 9:16 VIDEO, LOOP GIF, HTML BG)
+   * 10. CLIENT-SIDE EXPORTERS (PNG, OFFLINE LAG-FREE VIDEO, LOOP GIF)
    * ========================================================================= */
   const exportToast = document.getElementById('exportToast');
   const toastTitle = document.getElementById('toastTitle');
   const toastPct = document.getElementById('toastPct');
   const toastProgress = document.getElementById('toastProgress');
+  let toastHideTimer = null;
 
   function showToast(title, pct) {
+    if (toastHideTimer) {
+      clearTimeout(toastHideTimer);
+      toastHideTimer = null;
+    }
     toastTitle.textContent = title;
     toastPct.textContent = `${Math.round(pct)}%`;
     toastProgress.style.width = `${Math.min(100, Math.max(0, pct))}%`;
@@ -4418,8 +5275,10 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
   }
 
   function hideToast() {
-    setTimeout(() => {
+    if (toastHideTimer) clearTimeout(toastHideTimer);
+    toastHideTimer = setTimeout(() => {
       exportToast.classList.remove('visible');
+      toastHideTimer = null;
     }, 900);
   }
 
@@ -4434,6 +5293,36 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
+  function seekVideoElement(videoEl, targetTime) {
+    return new Promise((resolve) => {
+      if (!videoEl || videoEl.readyState < 1) {
+        resolve();
+        return;
+      }
+      const dur = Number.isFinite(videoEl.duration) && videoEl.duration > 0 ? videoEl.duration : 0;
+      const clamped = dur > 0 ? (targetTime % dur) : 0;
+      if (Math.abs((videoEl.currentTime || 0) - clamped) < 0.008) {
+        resolve();
+        return;
+      }
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        videoEl.removeEventListener('seeked', finish);
+        resolve();
+      };
+      videoEl.addEventListener('seeked', finish, { once: true });
+      try {
+        videoEl.currentTime = clamped;
+      } catch (e) {
+        finish();
+        return;
+      }
+      setTimeout(finish, 240);
+    });
+  }
+
   // Video Aspect Ratio Selector
   document.querySelectorAll('#videoAspectGroup .seg-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4444,22 +5333,23 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     });
   });
 
-  // Video Duration Controls (Presets + Custom Seconds)
+  // Video Duration Controls
   const videoDurationPresets = document.querySelectorAll('#videoDurationPresets .seg-btn');
   const videoDurationInput = document.getElementById('videoDurationInput');
   const videoDurationVal = document.getElementById('videoDurationVal');
 
   function setVideoDuration(seconds, triggerRefresh = true) {
-    const clamped = Math.max(1, Math.min(120, Math.round(Number(seconds) || 8)));
+    const raw = Number(seconds);
+    const clamped = Math.max(1, Math.min(120, Math.round((Number.isFinite(raw) && raw > 0 ? raw : 8) * 10) / 10));
     state.videoDuration = clamped;
     state.loopDuration = clamped;
     videoDurationInput.value = String(clamped);
     videoDurationVal.textContent = `${clamped.toFixed(1)}s`;
     videoDurationPresets.forEach(btn => {
-      btn.classList.toggle('active', parseInt(btn.dataset.dur, 10) === clamped);
+      btn.classList.toggle('active', Math.abs(parseInt(btn.dataset.dur, 10) - clamped) < 0.05);
     });
     if (triggerRefresh) {
-      restartPlaybackFromStart(true);
+      restartPlaybackFromStart(true, true);
     } else {
       updateTimelineUI();
     }
@@ -4487,15 +5377,232 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     }, 'image/png');
   });
 
-  // 2. Download Video (16:9 or 9:16) with Constant Real-Time Pacing
+  // 2. Offline Deterministic Frame-by-Frame WebM Muxer & WebCodecs Encoder (Zero Lag on Slow PCs)
+  function muxWebmVideo(encodedChunks, width, height, durationMs, codecName) {
+    const parts = [];
+    const pushBytes = (arr) => parts.push(arr instanceof Uint8Array ? arr : new Uint8Array(arr));
+    const encodeVint = (val) => {
+      if (val < 0x7F) return new Uint8Array([0x80 | val]);
+      if (val < 0x3FFF) return new Uint8Array([0x40 | (val >> 8), val & 0xFF]);
+      if (val < 0x1FFFFF) return new Uint8Array([0x20 | (val >> 16), (val >> 8) & 0xFF, val & 0xFF]);
+      return new Uint8Array([0x10 | (val >> 24), (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+    };
+    const uintBytes = (val) => {
+      if (val <= 0xFF) return new Uint8Array([val]);
+      if (val <= 0xFFFF) return new Uint8Array([(val >> 8) & 0xFF, val & 0xFF]);
+      if (val <= 0xFFFFFF) return new Uint8Array([(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+      return new Uint8Array([(val >>> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+    };
+    const strBytes = (s) => {
+      const b = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+      return b;
+    };
+    const float64Bytes = (v) => {
+      const buf = new ArrayBuffer(8);
+      new DataView(buf).setFloat64(0, v, false);
+      return new Uint8Array(buf);
+    };
+    const concatArrays = (arrays) => {
+      let total = 0;
+      for (const a of arrays) total += a.length;
+      const res = new Uint8Array(total);
+      let off = 0;
+      for (const a of arrays) {
+        res.set(a, off);
+        off += a.length;
+      }
+      return res;
+    };
+    const el = (idBytes, payload) => concatArrays([new Uint8Array(idBytes), encodeVint(payload.length), payload]);
+
+    // EBML Header
+    const ebmlBody = concatArrays([
+      el([0x42, 0x86], uintBytes(1)),
+      el([0x42, 0xF7], uintBytes(1)),
+      el([0x42, 0xF2], uintBytes(4)),
+      el([0x42, 0xF3], uintBytes(8)),
+      el([0x42, 0x82], strBytes('webm')),
+      el([0x42, 0x87], uintBytes(4)),
+      el([0x42, 0x85], uintBytes(2))
+    ]);
+    pushBytes(el([0x1A, 0x45, 0xDF, 0xA3], ebmlBody));
+
+    // Segment Info
+    const infoBody = concatArrays([
+      el([0x2A, 0xD7, 0xB1], uintBytes(1000000)),
+      el([0x44, 0x89], float64Bytes(durationMs)),
+      el([0x4D, 0x80], strBytes('ASCIIStudio')),
+      el([0x57, 0x41], strBytes('ASCIIStudio'))
+    ]);
+    const infoEl = el([0x15, 0x49, 0xA9, 0x66], infoBody);
+
+    // Tracks
+    const videoEl = el([0xE0], concatArrays([
+      el([0xB0], uintBytes(width)),
+      el([0xBA], uintBytes(height))
+    ]));
+    const trackEntry = el([0xAE], concatArrays([
+      el([0xD7], uintBytes(1)),
+      el([0x73, 0xC5], uintBytes(1)),
+      el([0x83], uintBytes(1)),
+      el([0x86], strBytes(codecName === 'vp9' ? 'V_VP9' : 'V_VP8')),
+      videoEl
+    ]));
+    const tracksEl = el([0x16, 0x54, 0xAE, 0x6B], trackEntry);
+
+    // Group chunks into 1-second clusters
+    const clusterElements = [];
+    let currentClusterTime = 0;
+    let currentBlocks = [];
+
+    const flushCluster = () => {
+      if (!currentBlocks.length) return;
+      const body = concatArrays([el([0xE7], uintBytes(currentClusterTime)), ...currentBlocks]);
+      clusterElements.push(el([0x1F, 0x43, 0xB6, 0x75], body));
+      currentBlocks = [];
+    };
+
+    for (let i = 0; i < encodedChunks.length; i++) {
+      const ch = encodedChunks[i];
+      const tsMs = Math.round(ch.timestamp / 1000);
+      if (i === 0 || (ch.isKey && tsMs - currentClusterTime >= 1000)) {
+        flushCluster();
+        currentClusterTime = tsMs;
+      }
+      const relTs = Math.max(-32768, Math.min(32767, tsMs - currentClusterTime));
+      const sb = new Uint8Array(4 + ch.data.length);
+      sb[0] = 0x81; // Track 1 VINT
+      sb[1] = (relTs >> 8) & 0xFF;
+      sb[2] = relTs & 0xFF;
+      sb[3] = ch.isKey ? 0x80 : 0x00;
+      sb.set(ch.data, 4);
+      currentBlocks.push(el([0xA3], sb));
+    }
+    flushCluster();
+
+    const segmentPayload = concatArrays([infoEl, tracksEl, ...clusterElements]);
+    pushBytes(el([0x18, 0x53, 0x80, 0x67], segmentPayload));
+
+    return new Blob(parts, { type: 'video/webm' });
+  }
+
+  async function renderVideoOfflineWebCodecs(recCanvas, recCtx, outW, outH, duration, fps) {
+    if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
+      return null;
+    }
+
+    const candidates = [
+      { codec: 'vp09.00.10.08', short: 'vp9' },
+      { codec: 'vp8', short: 'vp8' }
+    ];
+    let selected = null;
+    for (const cand of candidates) {
+      try {
+        const support = await VideoEncoder.isConfigSupported({
+          codec: cand.codec,
+          width: outW,
+          height: outH,
+          bitrate: 8_000_000,
+          framerate: fps
+        });
+        if (support && support.supported) {
+          selected = cand;
+          break;
+        }
+      } catch (e) {}
+    }
+    if (!selected) return null;
+
+    const encodedChunks = [];
+    let encodeError = null;
+
+    const encoder = new VideoEncoder({
+      output: (chunk) => {
+        const buf = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(buf);
+        encodedChunks.push({
+          data: buf,
+          timestamp: chunk.timestamp,
+          isKey: chunk.type === 'key'
+        });
+      },
+      error: (err) => {
+        encodeError = err;
+      }
+    });
+
+    encoder.configure({
+      codec: selected.codec,
+      width: outW,
+      height: outH,
+      bitrate: 8_000_000,
+      framerate: fps
+    });
+
+    const totalFrames = Math.max(1, Math.round(duration * fps));
+    const dt = 1 / fps;
+
+    for (let f = 0; f < totalFrames; f++) {
+      if (encodeError) throw encodeError;
+
+      const frameTime = f * dt;
+      const isLastFrame = f === totalFrames - 1;
+      state.simTime = frameTime;
+      state.mediaElapsed = frameTime;
+      if (state.sourceType === 'gif' && state.gifDuration > 0) {
+        state.gifTime = frameTime % state.gifDuration;
+      } else if (state.sourceType === 'video' && sourceVideo.readyState >= 1) {
+        await seekVideoElement(sourceVideo, frameTime);
+      }
+      if (state.showCodePane && state.codeAutoScroll) {
+        if (isLastFrame) {
+          state.codeScrollPos = 0;
+        } else {
+          const vidDur = (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0)
+            ? sourceVideo.duration
+            : 0;
+          const codeTime = vidDur > 0 ? (frameTime % vidDur) : frameTime;
+          state.codeScrollPos = codeTime * 2.4 * state.codeScrollSpeed;
+        }
+      }
+      if (state.buildAnimEnabled) {
+        const effBuildDur = getEffectiveBuildDuration();
+        state.buildProgress = Math.min(1.0, frameTime / Math.max(0.1, effBuildDur));
+      } else {
+        state.buildProgress = 1.0;
+      }
+
+      renderAsciiFrame(recCtx, outW, outH, dt, f > 0);
+
+      const timestampUs = Math.round(f * 1_000_000 / fps);
+      const durationUs = Math.round(1_000_000 / fps);
+      const vf = new VideoFrame(recCanvas, { timestamp: timestampUs, duration: durationUs });
+      try {
+        encoder.encode(vf, { keyFrame: f % (fps * 2) === 0 });
+      } finally {
+        vf.close();
+      }
+
+      showToast(`Rendering ${state.videoAspect} (${duration.toFixed(0)}s)...`, ((f + 1) / totalFrames) * 90);
+      if (f % 3 === 0) {
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    await encoder.flush();
+    encoder.close();
+    if (encodeError) throw encodeError;
+
+    showToast('Finalizing WebM container...', 95);
+    await new Promise(r => setTimeout(r, 0));
+    return muxWebmVideo(encodedChunks, outW, outH, duration * 1000, selected.short);
+  }
+
+  // 3. Download Video (16:9 or 9:16) — Lag-Free Offline Encoder with MediaRecorder Fallback
   const exportVideoBtn = document.getElementById('exportVideoBtn');
   exportVideoBtn.addEventListener('click', async () => {
     if (state.isExporting) return;
-    if (typeof MediaRecorder === 'undefined') {
-      showToast('MediaRecorder unsupported in browser', 100);
-      hideToast();
-      return;
-    }
 
     state.isExporting = true;
     exportVideoBtn.disabled = true;
@@ -4506,125 +5613,137 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     const savedBuildProgress = state.buildProgress;
     const savedCodeScrollPos = state.codeScrollPos;
 
+    sourceVideo.pause();
+
     const isVert = state.videoAspect === '9:16';
     const outW = isVert ? 1080 : 1920;
     const outH = isVert ? 1920 : 1080;
     const fps = 30;
     const duration = Math.max(1, Math.min(120, state.videoDuration));
-    const frameIntervalMs = 1000 / fps;
 
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outW;
     recCanvas.height = outH;
     const recCtx = recCanvas.getContext('2d', { alpha: false });
 
-    const mimeCandidates = [
-      'video/mp4;codecs=avc1',
-      'video/mp4',
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm'
-    ];
-    const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
-    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    try {
+      showToast(`Rendering ${state.videoAspect} (${duration.toFixed(0)}s)...`, 0);
 
-    const stream = recCanvas.captureStream(0);
-    const videoTrack = stream.getVideoTracks()[0];
-    const recorder = mimeType
-      ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 })
-      : new MediaRecorder(stream, { videoBitsPerSecond: 10_000_000 });
-
-    const chunks = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-
-    const stoppedPromise = new Promise(resolve => {
-      recorder.onstop = resolve;
-    });
-
-    showToast(`Recording ${state.videoAspect} (${duration.toFixed(0)}s)...`, 0);
-    recorder.start(250);
-
-    if (state.sourceType === 'video') {
-      sourceVideo.loop = true;
-      sourceVideo.playbackRate = 1.0;
-      try { sourceVideo.currentTime = 0; } catch (e) {}
-      await sourceVideo.play().catch(() => {});
-    }
-
-    const exportStartWall = performance.now();
-    let frameIndex = 0;
-
-    while (true) {
-      const elapsed = (performance.now() - exportStartWall) / 1000;
-      if (elapsed >= duration) break;
-
-      state.mediaElapsed = elapsed;
-      if (state.codeAutoScroll) {
-        state.codeScrollPos = savedCodeScrollPos + elapsed * 2.4 * state.codeScrollSpeed;
+      // Prefer deterministic offline WebCodecs rendering so slow PCs produce smooth 30fps video
+      let finalBlob = null;
+      let ext = 'webm';
+      try {
+        finalBlob = await renderVideoOfflineWebCodecs(recCanvas, recCtx, outW, outH, duration, fps);
+      } catch (wcErr) {
+        console.warn('WebCodecs offline export unavailable, using MediaRecorder fallback:', wcErr);
+        finalBlob = null;
       }
 
-      if (state.sourceType === 'video') {
-        if (sourceVideo.paused) {
-          sourceVideo.play().catch(() => {});
+      if (!finalBlob) {
+        if (typeof MediaRecorder === 'undefined') {
+          showToast('Video export unsupported in this browser', 100);
+          hideToast();
+          return;
         }
-      } else if (state.sourceType === 'gif' && state.gifDuration > 0) {
-        state.gifTime = elapsed % state.gifDuration;
-      } else if (state.sourceType === 'procedural') {
-        state.simTime = elapsed;
+
+        const mimeCandidates = [
+          'video/mp4;codecs=avc1',
+          'video/mp4',
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm'
+        ];
+        const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+        ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+        const stream = recCanvas.captureStream(0);
+        const videoTrack = stream.getVideoTracks()[0];
+        const recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 10_000_000 })
+          : new MediaRecorder(stream, { videoBitsPerSecond: 10_000_000 });
+
+        const chunks = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        const stoppedPromise = new Promise(resolve => {
+          recorder.onstop = resolve;
+        });
+
+        recorder.start(250);
+        const totalFrames = Math.max(1, Math.round(duration * fps));
+        const dt = 1 / fps;
+        const frameIntervalMs = 1000 / fps;
+
+        for (let f = 0; f < totalFrames; f++) {
+          const frameStart = performance.now();
+          const frameTime = f * dt;
+          const isLastFrame = f === totalFrames - 1;
+          state.simTime = frameTime;
+          state.mediaElapsed = frameTime;
+          if (state.sourceType === 'gif' && state.gifDuration > 0) {
+            state.gifTime = frameTime % state.gifDuration;
+          } else if (state.sourceType === 'video' && sourceVideo.readyState >= 1) {
+            await seekVideoElement(sourceVideo, frameTime);
+          }
+          if (state.showCodePane && state.codeAutoScroll) {
+            if (isLastFrame) {
+              state.codeScrollPos = 0;
+            } else {
+              const vidDur = (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0)
+                ? sourceVideo.duration
+                : 0;
+              const codeTime = vidDur > 0 ? (frameTime % vidDur) : frameTime;
+              state.codeScrollPos = codeTime * 2.4 * state.codeScrollSpeed;
+            }
+          }
+          if (state.buildAnimEnabled) {
+            const effBuildDur = getEffectiveBuildDuration();
+            state.buildProgress = Math.min(1.0, frameTime / Math.max(0.1, effBuildDur));
+          } else {
+            state.buildProgress = 1.0;
+          }
+
+          renderAsciiFrame(recCtx, outW, outH, dt, f > 0);
+          if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+            videoTrack.requestFrame();
+          }
+
+          showToast(`Recording ${state.videoAspect} (${duration.toFixed(0)}s)...`, ((f + 1) / totalFrames) * 95);
+          const elapsedFrameMs = performance.now() - frameStart;
+          const waitMs = Math.max(4, frameIntervalMs - elapsedFrameMs);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+
+        recorder.stop();
+        await stoppedPromise;
+        finalBlob = new Blob(chunks, { type: mimeType || 'video/webm' });
       }
 
-      if (state.buildAnimEnabled) {
-        state.buildProgress = Math.min(1.0, elapsed / Math.max(0.1, state.buildDuration));
-      } else {
-        state.buildProgress = 1.0;
-      }
-
-      renderAsciiFrame(recCtx, outW, outH, 1 / fps, true);
-      if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-        videoTrack.requestFrame();
-      }
-
-      frameIndex++;
-      showToast(`Recording ${state.videoAspect} (${duration.toFixed(0)}s)...`, (elapsed / duration) * 95);
-
-      const nextTargetMs = exportStartWall + frameIndex * frameIntervalMs;
-      const waitMs = nextTargetMs - performance.now();
-      if (waitMs > 1) {
-        await new Promise(r => setTimeout(r, waitMs));
-      } else {
-        await new Promise(r => setTimeout(r, 0));
-      }
+      triggerDownload(finalBlob, `ascii-studio-${state.videoAspect.replace(':', 'x')}-${Date.now()}.${ext}`);
+      showToast('Video downloaded!', 100);
+      hideToast();
+    } finally {
+      state.simTime = savedSimTime;
+      state.gifTime = savedGifTime;
+      state.mediaElapsed = savedMediaElapsed;
+      state.buildProgress = savedBuildProgress;
+      state.codeScrollPos = savedCodeScrollPos;
+      state.isExporting = false;
+      exportVideoBtn.disabled = false;
+      state.dirty = true;
+      setPlayState(wasPlaying);
     }
-
-    recorder.stop();
-    await stoppedPromise;
-
-    const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
-    triggerDownload(blob, `ascii-studio-${state.videoAspect.replace(':', 'x')}-${Date.now()}.${ext}`);
-
-    showToast('Video downloaded!', 100);
-    hideToast();
-
-    state.simTime = savedSimTime;
-    state.gifTime = savedGifTime;
-    state.mediaElapsed = savedMediaElapsed;
-    state.buildProgress = savedBuildProgress;
-    state.codeScrollPos = savedCodeScrollPos;
-    state.isExporting = false;
-    exportVideoBtn.disabled = false;
-    state.dirty = true;
-    setPlayState(wasPlaying);
   });
 
-  // 3. Pure-JS Typed-Array GIF89a Encoder
+  // 4. Pure-JS Typed-Array GIF89a Encoder
   function encodeGif89a(framesRgba, width, height, delayCs, loopCount) {
     const out = [];
     const writeStr = (s) => { for (let i = 0; i < s.length; i++) out.push(s.charCodeAt(i)); };
     const writeU16 = (v) => { out.push(v & 0xFF, (v >> 8) & 0xFF); };
 
-    // Build 256-color RGB 6x6x6 + grayscale ramp palette
+    // Build 256-color RGB 6x6x6 + grayscale + active theme palette
     const palette = new Uint8Array(256 * 3);
     let idx = 0;
     for (let r = 0; r < 6; r++) {
@@ -4636,11 +5755,22 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
         }
       }
     }
-    for (let i = 0; i < 40; i++) {
-      const v = Math.round((i / 39) * 255);
+    for (let i = 0; i < 24; i++) {
+      const v = Math.round((i / 23) * 255);
       palette[idx++] = v;
       palette[idx++] = v;
       palette[idx++] = v;
+    }
+    const [bgR, bgG, bgB] = hexToRgb(state.bgColor);
+    const [tnR, tnG, tnB] = hexToRgb(state.tintColor);
+    const [ptR, ptG, ptB] = hexToRgb(state.particleColor || '#c8d2e1');
+    palette[idx++] = bgR; palette[idx++] = bgG; palette[idx++] = bgB;
+    palette[idx++] = ptR; palette[idx++] = ptG; palette[idx++] = ptB;
+    for (let i = 0; i < 14; i++) {
+      const tf = (i + 1) / 14;
+      palette[idx++] = Math.round(tnR * tf);
+      palette[idx++] = Math.round(tnG * tf);
+      palette[idx++] = Math.round(tnB * tf);
     }
 
     // 4096-entry 4-bit-per-channel color lookup LUT
@@ -4747,7 +5877,7 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
           if (nextCode < 4096) {
             hashKeys[h] = key;
             hashVals[h] = nextCode++;
-            if (nextCode > (1 << codeSize) && codeSize < 12) {
+            if (nextCode === (1 << codeSize) && codeSize < 12) {
               codeSize++;
             }
           } else {
@@ -4784,257 +5914,81 @@ def pixel_to_ascii(r, g, b, contrast_lut, invert=False):
     state.isExporting = true;
     exportGifBtn.disabled = true;
 
-    const fps = parseInt(document.getElementById('gifFpsSelect').value, 10) || 15;
-    const loopCount = parseInt(document.getElementById('gifLoopSelect').value, 10) || 0;
-    const targetH = parseInt(document.getElementById('gifScaleSelect').value, 10) || 640;
-    const aspect = asciiCanvas.width / Math.max(1, asciiCanvas.height);
-    const targetW = Math.max(160, Math.round(targetH * aspect));
-
-    const duration = state.sourceType === 'gif' && state.gifDuration > 0
-      ? Math.min(8.0, state.gifDuration)
-      : (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
-        ? Math.min(6.0, sourceVideo.duration)
-        : 4.0);
-
-    const totalFrames = Math.max(8, Math.round(duration * fps));
-    const gifCanvas = document.createElement('canvas');
-    gifCanvas.width = targetW;
-    gifCanvas.height = targetH;
-    const gifCtx = gifCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
-
+    const wasPlaying = state.isPlaying;
     const savedSimTime = state.simTime;
     const savedGifTime = state.gifTime;
     const savedMediaElapsed = state.mediaElapsed;
     const savedBuild = state.buildProgress;
     const savedCodeScroll = state.codeScrollPos;
 
-    const framesRgba = [];
-    for (let f = 0; f < totalFrames; f++) {
-      const t = (f / totalFrames) * duration;
-      state.simTime = t;
-      state.gifTime = t;
-      state.mediaElapsed = t;
-      if (state.codeAutoScroll) {
-        state.codeScrollPos = savedCodeScroll + t * 2.4 * state.codeScrollSpeed;
+    try {
+      const fps = parseInt(document.getElementById('gifFpsSelect').value, 10) || 15;
+      const loopCount = parseInt(document.getElementById('gifLoopSelect').value, 10) || 0;
+      const targetH = parseInt(document.getElementById('gifScaleSelect').value, 10) || 640;
+      const aspect = Math.max(1, asciiCanvas.width) / Math.max(1, asciiCanvas.height);
+      const targetW = Math.max(160, Math.round(targetH * aspect));
+
+      const duration = state.sourceType === 'gif' && state.gifDuration > 0
+        ? Math.min(8.0, state.gifDuration)
+        : (state.sourceType === 'video' && Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
+          ? Math.min(6.0, sourceVideo.duration)
+          : 4.0);
+
+      const totalFrames = Math.max(8, Math.round(duration * fps));
+      const gifCanvas = document.createElement('canvas');
+      gifCanvas.width = targetW;
+      gifCanvas.height = targetH;
+      const gifCtx = gifCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+
+      const framesRgba = [];
+      for (let f = 0; f < totalFrames; f++) {
+        const t = (f / totalFrames) * duration;
+        const isLastFrame = f === totalFrames - 1;
+        state.simTime = t;
+        state.gifTime = t;
+        state.mediaElapsed = t;
+        if (state.codeAutoScroll) {
+          state.codeScrollPos = isLastFrame ? 0 : (t * 2.4 * state.codeScrollSpeed);
+        }
+        if (state.buildAnimEnabled) {
+          const effBuildDur = Math.min(state.buildDuration, Math.max(0.35, duration * 0.92));
+          state.buildProgress = Math.min(1.0, t / Math.max(0.1, effBuildDur));
+        } else {
+          state.buildProgress = 1.0;
+        }
+
+        if (state.sourceType === 'video' && sourceVideo.readyState >= 1) {
+          await seekVideoElement(sourceVideo, t);
+        }
+
+        renderAsciiFrame(gifCtx, targetW, targetH, 1 / fps, f > 0);
+        framesRgba.push(gifCtx.getImageData(0, 0, targetW, targetH).data);
+
+        showToast('Capturing GIF frames...', (f / totalFrames) * 70);
+        await new Promise(r => setTimeout(r, 0));
       }
-      state.buildProgress = state.buildAnimEnabled ? Math.min(1.0, t / Math.max(0.1, state.buildDuration)) : 1.0;
 
-      if (state.sourceType === 'video' && sourceVideo.readyState >= 1) {
-        sourceVideo.currentTime = t;
-        await new Promise(r => setTimeout(r, 35));
-      }
+      showToast('Encoding GIF89a...', 82);
+      await new Promise(r => setTimeout(r, 15));
 
-      renderAsciiFrame(gifCtx, targetW, targetH, 1 / fps, true);
-      framesRgba.push(gifCtx.getImageData(0, 0, targetW, targetH).data);
+      const delayCs = Math.max(2, Math.round(100 / fps));
+      const gifBlob = encodeGif89a(framesRgba, targetW, targetH, delayCs, loopCount);
+      triggerDownload(gifBlob, `ascii-studio-${Date.now()}.gif`);
 
-      showToast('Capturing GIF frames...', (f / totalFrames) * 70);
-      await new Promise(r => setTimeout(r, 0));
+      showToast('GIF downloaded!', 100);
+      hideToast();
+    } finally {
+      state.simTime = savedSimTime;
+      state.gifTime = savedGifTime;
+      state.mediaElapsed = savedMediaElapsed;
+      state.buildProgress = savedBuild;
+      state.codeScrollPos = savedCodeScroll;
+      state.isExporting = false;
+      exportGifBtn.disabled = false;
+      state.dirty = true;
+      setPlayState(wasPlaying);
     }
-
-    showToast('Encoding GIF89a...', 82);
-    await new Promise(r => setTimeout(r, 15));
-
-    const delayCs = Math.max(2, Math.round(100 / fps));
-    const gifBlob = encodeGif89a(framesRgba, targetW, targetH, delayCs, loopCount);
-    triggerDownload(gifBlob, `ascii-studio-${Date.now()}.gif`);
-
-    showToast('GIF downloaded!', 100);
-    hideToast();
-
-    state.simTime = savedSimTime;
-    state.gifTime = savedGifTime;
-    state.mediaElapsed = savedMediaElapsed;
-    state.buildProgress = savedBuild;
-    state.codeScrollPos = savedCodeScroll;
-    state.isExporting = false;
-    exportGifBtn.disabled = false;
-    state.dirty = true;
   });
-
-  // 4. Export Standalone Self-Contained HTML Wallpaper
-  document.getElementById('exportHtmlBtn').addEventListener('click', () => {
-    const rawName = (document.getElementById('htmlFilenameInput').value || 'ascii-wallpaper').trim();
-    const safeName = rawName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'ascii-wallpaper';
-
-    // Capture current frame or procedural snapshot
-    renderProceduralScene(state.proceduralId, state.simTime);
-    let snapshotDataUrl = '';
-    if (state.sourceType === 'image' && state.loadedImage) {
-      const c = document.createElement('canvas');
-      c.width = Math.min(480, state.loadedImage.naturalWidth || 480);
-      c.height = Math.round(c.width * ((state.loadedImage.naturalHeight || 480) / (state.loadedImage.naturalWidth || 480)));
-      c.getContext('2d').drawImage(state.loadedImage, 0, 0, c.width, c.height);
-      snapshotDataUrl = c.toDataURL('image/jpeg', 0.85);
-    }
-
-    const configPayload = JSON.stringify({
-      sourceType: state.sourceType === 'image' ? 'image' : 'procedural',
-      proceduralId: state.proceduralId,
-      snapshotDataUrl,
-      colorMode: state.colorMode,
-      tintColor: state.tintColor,
-      bgColor: state.bgColor,
-      vibrancy: state.vibrancy,
-      particles: state.particles,
-      cols: state.cols,
-      contrast: state.contrast,
-      brightness: state.brightness,
-      ramp: getActiveRamp(),
-      invert: state.invert
-    });
-
-    const htmlContent = buildStandaloneWallpaperHtml(safeName, configPayload);
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    triggerDownload(blob, `${safeName}.html`);
-    showToast(`Exported ${safeName}.html`, 100);
-    hideToast();
-  });
-
-  function buildStandaloneWallpaperHtml(title, configJson) {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${title} — ASCII Studio Wallpaper</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-  canvas { display: block; width: 100vw; height: 100vh; }
-</style>
-</head>
-<body>
-<canvas id="c"></canvas>
-<script>
-const CFG = ${configJson};
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d', { alpha: false });
-const sample = document.createElement('canvas');
-const sctx = sample.getContext('2d', { willReadFrequently: true });
-const proc = document.createElement('canvas');
-proc.width = 220; proc.height = 220;
-const pctx = proc.getContext('2d');
-
-let imgEl = null;
-if (CFG.sourceType === 'image' && CFG.snapshotDataUrl) {
-  imgEl = new Image();
-  imgEl.src = CFG.snapshotDataUrl;
-}
-
-const stars = Array.from({ length: 120 }, (_, i) => ({
-  x: Math.random(), y: Math.random(),
-  vy: 0.03 + Math.random() * 0.08,
-  ph: Math.random() * 6.28,
-  ch: ['*','+','.','·'][i % 4]
-}));
-
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
-
-function drawProc(sim) {
-  const W = proc.width, H = proc.height;
-  pctx.fillStyle = '#000';
-  pctx.fillRect(0, 0, W, H);
-  const cx = W * 0.5, cy = H * 0.5;
-  if (CFG.proceduralId === 'donut') {
-    const A = sim * 1.1, B = sim * 0.6;
-    const cosA = Math.cos(A), sinA = Math.sin(A), cosB = Math.cos(B), sinB = Math.sin(B);
-    for (let t = 0; t < 6.28; t += 0.1) {
-      const ct = Math.cos(t), st = Math.sin(t);
-      for (let p = 0; p < 6.28; p += 0.04) {
-        const cp = Math.cos(p), sp = Math.sin(p);
-        const h = ct + 2;
-        const D = 1 / (sp * h * sinA + st * cosA + 5);
-        const l = sp * h * cosA - st * sinA;
-        const x = (cx + 95 * D * (cp * h * cosB - l * sinB)) | 0;
-        const y = (cy + 95 * D * (cp * h * sinB + l * cosB)) | 0;
-        const lum = Math.max(0.15, (cp * ct * sinB - cosA * ct * sp - sinA * st + cosB * (cosA * st - ct * sinA * sp)));
-        const v = Math.min(255, (lum * 220) | 0);
-        pctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
-        pctx.fillRect(x, y, 2, 2);
-      }
-    }
-  } else {
-    const bob = Math.abs(Math.sin(sim * 2.2)) * 5;
-    [[cy + 52 - bob * 0.3, 44], [cy - 2 - bob * 0.6, 33], [cy - 44 - bob, 23]].forEach(([sy, r]) => {
-      const g = pctx.createRadialGradient(cx - r * 0.35, sy - r * 0.35, r * 0.1, cx, sy, r);
-      g.addColorStop(0, '#fff'); g.addColorStop(0.6, '#b8c4d4'); g.addColorStop(1, '#2a3342');
-      pctx.fillStyle = g;
-      pctx.beginPath(); pctx.arc(cx, sy, r, 0, 6.283); pctx.fill();
-    });
-  }
-}
-
-let sim = 0, last = performance.now();
-function loop(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  sim += dt;
-
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = CFG.bgColor;
-  ctx.fillRect(0, 0, W, H);
-
-  if (CFG.particles) {
-    ctx.fillStyle = 'rgba(200,210,225,0.35)';
-    ctx.font = '12px monospace';
-    for (const s of stars) {
-      s.y = (s.y + s.vy * dt) % 1;
-      ctx.fillText(s.ch, s.x * W, s.y * H);
-    }
-  }
-
-  const cols = CFG.cols;
-  const rows = Math.max(16, Math.round(cols * 0.54));
-  sample.width = cols; sample.height = rows;
-  sctx.fillStyle = '#000'; sctx.fillRect(0, 0, cols, rows);
-
-  if (CFG.sourceType === 'image' && imgEl && imgEl.complete) {
-    sctx.drawImage(imgEl, 0, 0, cols, rows);
-  } else {
-    drawProc(sim);
-    sctx.drawImage(proc, 0, 0, cols, rows);
-  }
-
-  const px = sctx.getImageData(0, 0, cols, rows).data;
-  const cw = Math.max(4, Math.floor((W * 0.92) / cols));
-  const ch = Math.max(7, Math.floor((H * 0.92) / rows));
-  const ox = Math.floor((W - cw * cols) * 0.5);
-  const oy = Math.floor((H - ch * rows) * 0.5);
-  ctx.font = '600 ' + Math.round(ch * 0.88) + 'px monospace';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  const ramp = CFG.ramp;
-  const rMax = ramp.length - 1;
-  let i = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const R = px[i], G = px[i + 1], B = px[i + 2]; i += 4;
-      let lum = (77 * R + 150 * G + 29 * B) >> 8;
-      if (CFG.invert) lum = 255 - lum;
-      const ci = (lum * rMax + 127) >> 8;
-      if (ci <= 0) continue;
-      if (CFG.colorMode === 'rgb') {
-        ctx.fillStyle = 'rgb(' + R + ',' + G + ',' + B + ')';
-      } else if (CFG.colorMode === 'tint') {
-        ctx.fillStyle = CFG.tintColor;
-      } else {
-        ctx.fillStyle = 'rgb(' + lum + ',' + lum + ',' + lum + ')';
-      }
-      ctx.fillText(ramp[ci], ox + c * cw + cw * 0.5, oy + r * ch + ch * 0.5);
-    }
-  }
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-<\/script>
-</body>
-</html>`;
-  }
 
   // Initialize Default Scene
   loadProceduralSample('snowman');
